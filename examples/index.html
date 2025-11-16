@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VecDB-WASM Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+        }
+
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        label {
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        input, select, button {
+            padding: 10px;
+            border: 2px solid #e0e0e0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            color: #666;
+            margin-top: 5px;
+        }
+
+        .results {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            background: #f9f9f9;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .result-id {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .result-score {
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .log {
+            background: #1e1e1e;
+            color: #00ff00;
+            padding: 15px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 15px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 VecDB-WASM</h1>
+            <p>High-Performance Vector Database in Your Browser</p>
+        </div>
+
+        <div class="content">
+            <div id="loading" class="loading">
+                <div class="spinner"></div>
+                <p>Loading WebAssembly module...</p>
+            </div>
+
+            <div id="app" style="display: none;">
+                <!-- Configuration -->
+                <div class="section">
+                    <h2>⚙️ Configuration</h2>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="dimension">Dimension</label>
+                            <input type="number" id="dimension" value="128" min="1">
+                        </div>
+                        <div class="control-group">
+                            <label for="metric">Distance Metric</label>
+                            <select id="metric">
+                                <option value="Cosine">Cosine</option>
+                                <option value="Euclidean">Euclidean</option>
+                                <option value="DotProduct">Dot Product</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label for="indexType">Index Type</label>
+                            <select id="indexType">
+                                <option value="Flat">Flat (Baseline)</option>
+                                <option value="HNSW">HNSW (Fast)</option>
+                            </select>
+                        </div>
+                        <div class="control-group">
+                            <label>&nbsp;</label>
+                            <button onclick="createDB()">Create Database</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Stats -->
+                <div class="section">
+                    <h2>📊 Statistics</h2>
+                    <div class="stats">
+                        <div class="stat-card">
+                            <div class="stat-value" id="vectorCount">0</div>
+                            <div class="stat-label">Vectors</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="dimension-stat">-</div>
+                            <div class="stat-label">Dimension</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="lastSearchTime">-</div>
+                            <div class="stat-label">Last Search (ms)</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-value" id="throughput">-</div>
+                            <div class="stat-label">QPS</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operations -->
+                <div class="section">
+                    <h2>🔧 Operations</h2>
+                    <div class="controls">
+                        <div class="control-group">
+                            <label for="numVectors">Number of Vectors</label>
+                            <input type="number" id="numVectors" value="1000" min="1">
+                        </div>
+                        <div class="control-group">
+                            <label>&nbsp;</label>
+                            <button onclick="generateRandomVectors()">Generate Random Vectors</button>
+                        </div>
+                        <div class="control-group">
+                            <label for="topK">Top K Results</label>
+                            <input type="number" id="topK" value="10" min="1">
+                        </div>
+                        <div class="control-group">
+                            <label>&nbsp;</label>
+                            <button onclick="searchRandom()">Search Random Query</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results -->
+                <div class="section">
+                    <h2>🔍 Search Results</h2>
+                    <div id="results"></div>
+                </div>
+
+                <!-- Log -->
+                <div class="section">
+                    <h2>📝 Console Log</h2>
+                    <div class="log" id="log"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { VectorDB, IndexType, Metric } from '../pkg/vecdb_wasm.js';
+
+        let db = null;
+        let dimension = 128;
+
+        function log(message) {
+            const logEl = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            const timestamp = new Date().toLocaleTimeString();
+            entry.textContent = `[${timestamp}] ${message}`;
+            logEl.appendChild(entry);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        window.createDB = function() {
+            dimension = parseInt(document.getElementById('dimension').value);
+            const metric = Metric[document.getElementById('metric').value];
+            const indexType = IndexType[document.getElementById('indexType').value];
+
+            try {
+                db = new VectorDB(dimension, metric, indexType);
+                document.getElementById('dimension-stat').textContent = dimension;
+                log(`Database created: dimension=${dimension}, metric=${document.getElementById('metric').value}, index=${document.getElementById('indexType').value}`);
+                updateStats();
+            } catch (e) {
+                log(`Error: ${e}`);
+            }
+        };
+
+        window.generateRandomVectors = function() {
+            if (!db) {
+                log('Please create database first!');
+                return;
+            }
+
+            const numVectors = parseInt(document.getElementById('numVectors').value);
+            const startTime = performance.now();
+
+            try {
+                for (let i = 0; i < numVectors; i++) {
+                    const vector = new Float32Array(dimension);
+                    for (let j = 0; j < dimension; j++) {
+                        vector[j] = Math.random() * 2 - 1;
+                    }
+                    const metadata = JSON.stringify({
+                        name: `vector_${i}`,
+                        created: new Date().toISOString()
+                    });
+                    db.insert(i, Array.from(vector), metadata);
+                }
+
+                const elapsed = performance.now() - startTime;
+                log(`Inserted ${numVectors} vectors in ${elapsed.toFixed(2)}ms (${(numVectors / (elapsed / 1000)).toFixed(0)} vectors/sec)`);
+                updateStats();
+            } catch (e) {
+                log(`Error: ${e}`);
+            }
+        };
+
+        window.searchRandom = function() {
+            if (!db || db.len() === 0) {
+                log('Please generate vectors first!');
+                return;
+            }
+
+            const k = parseInt(document.getElementById('topK').value);
+            const query = new Float32Array(dimension);
+            for (let i = 0; i < dimension; i++) {
+                query[i] = Math.random() * 2 - 1;
+            }
+
+            const startTime = performance.now();
+            try {
+                const results = db.search(Array.from(query), k, true);
+                const elapsed = performance.now() - startTime;
+
+                document.getElementById('lastSearchTime').textContent = elapsed.toFixed(2);
+                document.getElementById('throughput').textContent = (1000 / elapsed).toFixed(0);
+
+                displayResults(results);
+                log(`Search completed in ${elapsed.toFixed(2)}ms, found ${results.length} results`);
+            } catch (e) {
+                log(`Error: ${e}`);
+            }
+        };
+
+        function displayResults(results) {
+            const resultsEl = document.getElementById('results');
+            resultsEl.innerHTML = '';
+
+            results.forEach((result, idx) => {
+                const item = document.createElement('div');
+                item.className = 'result-item';
+
+                const info = document.createElement('div');
+                info.innerHTML = `
+                    <div class="result-id">Vector ID: ${result.id}</div>
+                    ${result.metadata ? `<small style="color: #666">${result.metadata}</small>` : ''}
+                `;
+
+                const score = document.createElement('div');
+                score.className = 'result-score';
+                score.textContent = result.score.toFixed(4);
+
+                item.appendChild(info);
+                item.appendChild(score);
+                resultsEl.appendChild(item);
+            });
+        }
+
+        function updateStats() {
+            if (db) {
+                document.getElementById('vectorCount').textContent = db.len();
+            }
+        }
+
+        // Initialize
+        async function main() {
+            try {
+                await init();
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('app').style.display = 'block';
+                log('VecDB-WASM initialized successfully!');
+
+                // Create default database
+                createDB();
+            } catch (e) {
+                log(`Initialization error: ${e}`);
+            }
+        }
+
+        main();
+    </script>
+</body>
+</html>

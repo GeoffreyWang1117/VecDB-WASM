@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VecDB-WASM Benchmark</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #0d1117;
+            color: #c9d1d9;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            color: #58a6ff;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        .benchmark-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+        }
+
+        .card h2 {
+            color: #58a6ff;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .metric:last-child {
+            border-bottom: none;
+        }
+
+        .metric-label {
+            color: #8b949e;
+        }
+
+        .metric-value {
+            color: #58a6ff;
+            font-weight: bold;
+        }
+
+        .metric-value.good {
+            color: #3fb950;
+        }
+
+        .metric-value.warning {
+            color: #d29922;
+        }
+
+        .metric-value.error {
+            color: #f85149;
+        }
+
+        button {
+            background: linear-gradient(180deg, #1f6feb, #1158c7);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            margin: 5px;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: linear-gradient(180deg, #1f6feb, #0d419d);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+
+        .chart {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            padding: 20px;
+            margin-top: 20px;
+            min-height: 300px;
+        }
+
+        .bar-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 250px;
+            padding: 20px 0;
+        }
+
+        .bar {
+            flex: 1;
+            margin: 0 10px;
+            background: linear-gradient(180deg, #58a6ff, #1f6feb);
+            border-radius: 4px 4px 0 0;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .bar:hover {
+            background: linear-gradient(180deg, #79c0ff, #58a6ff);
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -25px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            color: #8b949e;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -25px;
+            width: 100%;
+            text-align: center;
+            font-size: 12px;
+            font-weight: bold;
+            color: #58a6ff;
+        }
+
+        .progress {
+            background: #21262d;
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #1f6feb, #58a6ff);
+            height: 100%;
+            transition: width 0.3s;
+        }
+
+        .status {
+            text-align: center;
+            padding: 15px;
+            background: #161b22;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #21262d;
+        }
+
+        th {
+            background: #161b22;
+            color: #58a6ff;
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background: #161b22;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>⚡ VecDB-WASM Performance Benchmark</h1>
+
+        <div class="controls">
+            <button onclick="runAllBenchmarks()">Run All Benchmarks</button>
+            <button onclick="runInsertBenchmark()">Insert Performance</button>
+            <button onclick="runSearchBenchmark()">Search Performance</button>
+            <button onclick="runScalabilityTest()">Scalability Test</button>
+            <button onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="status" id="status">
+            Ready to run benchmarks
+        </div>
+
+        <div class="benchmark-grid">
+            <div class="card">
+                <h2>📊 Insert Performance</h2>
+                <div id="insert-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Total Time:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Vectors/sec:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Avg Latency:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>🔍 Search Performance</h2>
+                <div id="search-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Avg Search Time:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">QPS (Queries/sec):</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">P95 Latency:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>💾 Memory Usage</h2>
+                <div id="memory-metrics">
+                    <div class="metric">
+                        <span class="metric-label">Vectors Stored:</span>
+                        <span class="metric-value" id="vectors-stored">0</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Dimension:</span>
+                        <span class="metric-value" id="dimension">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Index Type:</span>
+                        <span class="metric-value" id="index-type">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>⚡ SIMD vs Scalar</h2>
+                <div id="simd-metrics">
+                    <div class="metric">
+                        <span class="metric-label">SIMD Speedup:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                    <div class="metric">
+                        <span class="metric-label">Distance Calc/sec:</span>
+                        <span class="metric-value">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📈 Performance Comparison</h2>
+            <div class="chart">
+                <div class="bar-chart" id="comparison-chart"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Detailed Results</h2>
+            <table id="results-table">
+                <thead>
+                    <tr>
+                        <th>Test</th>
+                        <th>Vectors</th>
+                        <th>Dimension</th>
+                        <th>Time (ms)</th>
+                        <th>Throughput</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody id="results-body">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { VectorDB, IndexType, Metric } from '../pkg/vecdb_wasm.js';
+
+        let initialized = false;
+        let results = [];
+
+        async function ensureInit() {
+            if (!initialized) {
+                await init();
+                initialized = true;
+            }
+        }
+
+        function updateStatus(message, isRunning = false) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.style.background = isRunning ? '#1f6feb' : '#161b22';
+        }
+
+        function addResult(test, vectors, dimension, time, throughput) {
+            results.push({ test, vectors, dimension, time, throughput });
+            const tbody = document.getElementById('results-body');
+            const row = tbody.insertRow(0);
+
+            row.innerHTML = `
+                <td>${test}</td>
+                <td>${vectors.toLocaleString()}</td>
+                <td>${dimension}</td>
+                <td>${time.toFixed(2)}</td>
+                <td>${throughput}</td>
+                <td><span class="metric-value good">✓</span></td>
+            `;
+        }
+
+        window.runInsertBenchmark = async function() {
+            await ensureInit();
+            updateStatus('Running insert benchmark...', true);
+
+            const dimension = 128;
+            const numVectors = 10000;
+            const db = new VectorDB(dimension, Metric.Cosine, IndexType.HNSW);
+
+            const start = performance.now();
+
+            for (let i = 0; i < numVectors; i++) {
+                const vector = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                db.insert(i, vector, null);
+            }
+
+            const elapsed = performance.now() - start;
+            const throughput = (numVectors / (elapsed / 1000)).toFixed(0);
+            const avgLatency = (elapsed / numVectors).toFixed(3);
+
+            document.querySelector('#insert-metrics .metric:nth-child(1) .metric-value').textContent = `${elapsed.toFixed(0)} ms`;
+            document.querySelector('#insert-metrics .metric:nth-child(2) .metric-value').textContent = `${throughput}`;
+            document.querySelector('#insert-metrics .metric:nth-child(3) .metric-value').textContent = `${avgLatency} ms`;
+
+            document.getElementById('vectors-stored').textContent = numVectors.toLocaleString();
+            document.getElementById('dimension').textContent = dimension;
+            document.getElementById('index-type').textContent = 'HNSW';
+
+            addResult('Insert', numVectors, dimension, elapsed, `${throughput} vec/s`);
+            updateStatus(`Insert benchmark complete: ${throughput} vectors/sec`);
+        };
+
+        window.runSearchBenchmark = async function() {
+            await ensureInit();
+            updateStatus('Running search benchmark...', true);
+
+            const dimension = 128;
+            const numVectors = 10000;
+            const numQueries = 100;
+            const db = new VectorDB(dimension, Metric.Cosine, IndexType.HNSW);
+
+            // Insert data
+            for (let i = 0; i < numVectors; i++) {
+                const vector = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                db.insert(i, vector, null);
+            }
+
+            // Run searches
+            const latencies = [];
+            const start = performance.now();
+
+            for (let i = 0; i < numQueries; i++) {
+                const query = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                const queryStart = performance.now();
+                db.search(query, 10, false);
+                latencies.push(performance.now() - queryStart);
+            }
+
+            const elapsed = performance.now() - start;
+            const avgLatency = latencies.reduce((a, b) => a + b, 0) / latencies.length;
+            const qps = (numQueries / (elapsed / 1000)).toFixed(0);
+
+            latencies.sort((a, b) => a - b);
+            const p95 = latencies[Math.floor(latencies.length * 0.95)];
+
+            document.querySelector('#search-metrics .metric:nth-child(1) .metric-value').textContent = `${avgLatency.toFixed(2)} ms`;
+            document.querySelector('#search-metrics .metric:nth-child(2) .metric-value').textContent = qps;
+            document.querySelector('#search-metrics .metric:nth-child(3) .metric-value').textContent = `${p95.toFixed(2)} ms`;
+
+            addResult('Search', numVectors, dimension, elapsed, `${qps} QPS`);
+            updateStatus(`Search benchmark complete: ${qps} QPS`);
+        };
+
+        window.runScalabilityTest = async function() {
+            await ensureInit();
+            updateStatus('Running scalability test...', true);
+
+            const dimension = 128;
+            const sizes = [1000, 5000, 10000, 25000, 50000];
+            const chartData = [];
+
+            for (const size of sizes) {
+                const db = new VectorDB(dimension, Metric.Cosine, IndexType.HNSW);
+
+                // Insert vectors
+                for (let i = 0; i < size; i++) {
+                    const vector = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                    db.insert(i, vector, null);
+                }
+
+                // Measure search time
+                const query = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                const start = performance.now();
+                db.search(query, 10, false);
+                const searchTime = performance.now() - start;
+
+                chartData.push({ size, time: searchTime });
+                addResult(`Scalability ${size}`, size, dimension, searchTime, `${searchTime.toFixed(2)} ms`);
+            }
+
+            // Update chart
+            const chart = document.getElementById('comparison-chart');
+            chart.innerHTML = '';
+            const maxTime = Math.max(...chartData.map(d => d.time));
+
+            chartData.forEach(data => {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = `${(data.time / maxTime) * 100}%`;
+
+                const label = document.createElement('div');
+                label.className = 'bar-label';
+                label.textContent = `${(data.size / 1000).toFixed(0)}K`;
+
+                const value = document.createElement('div');
+                value.className = 'bar-value';
+                value.textContent = `${data.time.toFixed(1)}ms`;
+
+                bar.appendChild(label);
+                bar.appendChild(value);
+                chart.appendChild(bar);
+            });
+
+            updateStatus('Scalability test complete');
+        };
+
+        window.runAllBenchmarks = async function() {
+            await runInsertBenchmark();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await runSearchBenchmark();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await runScalabilityTest();
+        };
+
+        window.clearResults = function() {
+            results = [];
+            document.getElementById('results-body').innerHTML = '';
+            document.getElementById('comparison-chart').innerHTML = '';
+            updateStatus('Results cleared');
+        };
+
+        // Auto-initialize
+        ensureInit().then(() => {
+            updateStatus('Ready to run benchmarks');
+        });
+    </script>
+</body>
+</html>
