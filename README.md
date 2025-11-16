@@ -216,10 +216,34 @@ const stats = db.get_stats();
   - [ ] Web Workers parallelism
   - [ ] React-based full UI
 
+## 📚 Documentation
+
+### Core Documentation
+- **[Quick Start Guide](docs/QUICKSTART.md)** - Get started in 5 minutes
+- **[API Reference](docs/API.md)** - Complete API documentation
+- **[Deployment Guide](docs/DEPLOYMENT.md)** - Production deployment guide
+
+### Additional Resources
+- **[Browser Compatibility](BROWSER_COMPATIBILITY.md)** - Browser support matrix and SIMD setup
+- **[Development Guide](DEVELOPMENT.md)** - Development workflow and architecture
+- **[Contributing Guidelines](CONTRIBUTING.md)** - How to contribute
+- **[Changelog](CHANGELOG.md)** - Version history and release notes
+
+### Examples
+- [Basic Demo](examples/index.html) - Interactive vector database demo
+- [Performance Benchmark](examples/benchmark.html) - Performance testing suite
+- [Persistence Features](examples/persistence.html) - IndexedDB and snapshots
+- [Compatibility Check](examples/compatibility.html) - Browser feature detection
+
 ## 📄 License
 
-MIT License - see LICENSE file for details
+MIT License - see [LICENSE](LICENSE) file for details
 
 ## 🤝 Contributing
 
-Contributions welcome! Please see CONTRIBUTING.md for guidelines.
+Contributions welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) before submitting PRs.
+
+### Quick Links
+- [Report a Bug](https://github.com/GeoffreyWang1117/VecDB-WASM/issues/new?labels=bug)
+- [Request a Feature](https://github.com/GeoffreyWang1117/VecDB-WASM/issues/new?labels=enhancement)
+- [Ask a Question](https://github.com/GeoffreyWang1117/VecDB-WASM/discussions)

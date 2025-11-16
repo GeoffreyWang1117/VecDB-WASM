@@ -1,18 +1,30 @@
 {
   "name": "vecdb-wasm",
-  "version": "0.1.0",
-  "description": "High-performance vector database for browsers using WebAssembly",
+  "version": "0.2.0",
+  "description": "Production-grade vector database for browsers using WebAssembly with SIMD acceleration",
   "main": "pkg/vecdb_wasm.js",
   "types": "pkg/vecdb_wasm.d.ts",
   "scripts": {
     "build": "wasm-pack build --target web --release",
     "build:dev": "wasm-pack build --target web --dev",
-    "test": "wasm-pack test --headless --firefox",
-    "serve": "python3 -m http.server 8080"
+    "build:optimized": "wasm-pack build --target web --release && wasm-opt -Oz -o pkg/vecdb_wasm_bg.wasm pkg/vecdb_wasm_bg.wasm",
+    "test": "cargo test",
+    "test:wasm": "wasm-pack test --headless --firefox",
+    "test:chrome": "wasm-pack test --headless --chrome",
+    "serve": "python3 -m http.server 8080",
+    "serve:examples": "cd examples && python3 -m http.server 8080",
+    "clean": "cargo clean && rm -rf pkg",
+    "fmt": "cargo fmt",
+    "clippy": "cargo clippy -- -D warnings",
+    "check": "cargo check --all-features"
   },
   "repository": {
     "type": "git",
     "url": "https://github.com/GeoffreyWang1117/VecDB-WASM"
+  },
+  "homepage": "https://github.com/GeoffreyWang1117/VecDB-WASM#readme",
+  "bugs": {
+    "url": "https://github.com/GeoffreyWang1117/VecDB-WASM/issues"
   },
   "keywords": [
     "vector-database",
@@ -21,11 +33,23 @@
     "rust",
     "hnsw",
     "similarity-search",
-    "machine-learning"
+    "machine-learning",
+    "simd",
+    "embeddings",
+    "semantic-search",
+    "indexeddb",
+    "browser-database",
+    "ann",
+    "nearest-neighbors"
   ],
   "author": "VecDB Team",
   "license": "MIT",
   "files": [
-    "pkg/*"
-  ]
+    "pkg/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=14.0.0"
+  }
 }
