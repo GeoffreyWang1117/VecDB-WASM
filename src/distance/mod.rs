@@ -59,6 +59,73 @@ pub fn dot_product(a: &[f32], b: &[f32]) -> f32 {
     sum
 }
 
+/// Normalize a vector to unit length (L2 norm = 1)
+/// Returns a new normalized vector
+///
+/// # Arguments
+/// * `vector` - Input vector to normalize
+///
+/// # Returns
+/// Normalized vector with L2 norm = 1. Returns zero vector if input is zero vector.
+///
+/// # Example
+/// ```
+/// use vecdb_wasm::distance::normalize_vector;
+/// let v = vec![3.0, 4.0];
+/// let normalized = normalize_vector(&v);
+/// // normalized ≈ [0.6, 0.8]
+/// ```
+pub fn normalize_vector(vector: &[f32]) -> Vec<f32> {
+    let mut norm = 0.0;
+    for &v in vector {
+        norm += v * v;
+    }
+    norm = norm.sqrt();
+
+    if norm == 0.0 {
+        return vector.to_vec();
+    }
+
+    vector.iter().map(|&v| v / norm).collect()
+}
+
+/// Normalize a vector in-place to unit length (L2 norm = 1)
+///
+/// # Arguments
+/// * `vector` - Mutable vector to normalize in-place
+///
+/// # Example
+/// ```
+/// use vecdb_wasm::distance::normalize_vector_inplace;
+/// let mut v = vec![3.0, 4.0];
+/// normalize_vector_inplace(&mut v);
+/// // v ≈ [0.6, 0.8]
+/// ```
+pub fn normalize_vector_inplace(vector: &mut [f32]) {
+    let mut norm = 0.0;
+    for &v in vector.iter() {
+        norm += v * v;
+    }
+    norm = norm.sqrt();
+
+    if norm == 0.0 {
+        return;
+    }
+
+    for v in vector.iter_mut() {
+        *v /= norm;
+    }
+}
+
+/// Calculate the L2 norm (magnitude) of a vector
+pub fn vector_norm(vector: &[f32]) -> f32 {
+    let mut sum = 0.0;
+    for &v in vector {
+        sum += v * v;
+    }
+    sum.sqrt()
+}
+
 /// Calculate distance/similarity based on metric
 /// Note: Higher values always mean "better" (more similar)
 /// Automatically uses SIMD when available and dimension >= 4
@@ -126,5 +193,44 @@ mod tests {
         let b = vec![4.0, 5.0, 6.0];
         let dot = dot_product(&a, &b);
         assert!((dot - 32.0).abs() < 1e-6); // 1*4 + 2*5 + 3*6 = 32
+    }
+
+    #[test]
+    fn test_normalize_vector() {
+        // Test with [3, 4] -> should normalize to [0.6, 0.8]
+        let v = vec![3.0, 4.0];
+        let normalized = normalize_vector(&v);
+        assert!((normalized[0] - 0.6).abs() < 1e-6);
+        assert!((normalized[1] - 0.8).abs() < 1e-6);
+
+        // Verify norm is 1
+        let norm = vector_norm(&normalized);
+        assert!((norm - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_normalize_vector_inplace() {
+        let mut v = vec![3.0, 4.0];
+        normalize_vector_inplace(&mut v);
+        assert!((v[0] - 0.6).abs() < 1e-6);
+        assert!((v[1] - 0.8).abs() < 1e-6);
+
+        // Verify norm is 1
+        let norm = vector_norm(&v);
+        assert!((norm - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn test_zero_vector_normalization() {
+        let v = vec![0.0, 0.0, 0.0];
+        let normalized = normalize_vector(&v);
+        assert_eq!(normalized, vec![0.0, 0.0, 0.0]);
+    }
+
+    #[test]
+    fn test_vector_norm() {
+        let v = vec![3.0, 4.0];
+        let norm = vector_norm(&v);
+        assert!((norm - 5.0).abs() < 1e-6);
     }
 }

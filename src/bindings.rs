@@ -560,6 +560,134 @@ impl VectorDB {
 
     /// Get statistics about the database
     #[wasm_bindgen]
+    /// Batch search: search multiple queries at once
+    /// More efficient than calling search() multiple times
+    ///
+    /// # Arguments
+    /// * `queries` - Array of query vectors (as JsValue)
+    /// * `k` - Number of results per query
+    /// * `include_metadata` - Include metadata in results
+    ///
+    /// # Returns
+    /// Array of arrays of search results
+    #[wasm_bindgen]
+    pub fn batch_search(&self, queries: JsValue, k: usize, include_metadata: bool) -> Result<JsValue, JsValue> {
+        let queries: Vec<Vec<f32>> = serde_wasm_bindgen::from_value(queries)
+            .map_err(|e| JsValue::from_str(&format!("Invalid queries format: {}", e)))?;
+
+        let mut all_results = Vec::new();
+
+        for query in queries {
+            if query.len() != self.dimension {
+                return Err(JsValue::from_str(&format!(
+                    "Query dimension mismatch: expected {}, got {}",
+                    self.dimension,
+                    query.len()
+                )));
+            }
+
+            let results = self.index.search(&query, k);
+
+            let search_results: Vec<SearchResult> = results
+                .into_iter()
+                .map(|r| SearchResult {
+                    id: r.id,
+                    score: r.score,
+                    metadata: if include_metadata {
+                        self.storage.get_metadata(r.id).map(|m| {
+                            serde_json::to_string(&m.data).unwrap_or_default()
+                        })
+                    } else {
+                        None
+                    },
+                })
+                .collect();
+
+            all_results.push(search_results);
+        }
+
+        serde_wasm_bindgen::to_value(&all_results)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Range search: find all vectors within a distance threshold
+    ///
+    /// # Arguments
+    /// * `query` - Query vector
+    /// * `radius` - Maximum distance threshold
+    /// * `max_results` - Maximum number of results to return (0 = unlimited)
+    /// * `include_metadata` - Include metadata in results
+    ///
+    /// # Returns
+    /// Array of search results within the radius
+    #[wasm_bindgen]
+    pub fn search_radius(
+        &self,
+        query: Vec<f32>,
+        radius: f32,
+        max_results: usize,
+        include_metadata: bool,
+    ) -> Result<JsValue, JsValue> {
+        if query.len() != self.dimension {
+            return Err(JsValue::from_str(&format!(
+                "Query dimension mismatch: expected {}, got {}",
+                self.dimension,
+                query.len()
+            )));
+        }
+
+        // Get a large candidate set and filter by radius
+        let candidate_count = if max_results > 0 {
+            max_results * 10
+        } else {
+            self.storage.len()
+        };
+
+        let candidates = self.index.search(&query, candidate_count);
+
+        let mut results: Vec<SearchResult> = candidates
+            .into_iter()
+            .filter(|r| {
+                // For distance metrics (Euclidean), smaller is better
+                // For similarity metrics (Cosine, DotProduct), larger is better
+                match self.metric {
+                    DistanceMetric::Euclidean => {
+                        // Convert back from similarity score to distance
+                        let dist = if r.score == f32::MAX {
+                            0.0
+                        } else {
+                            (1.0 / r.score) - 1.0
+                        };
+                        dist <= radius
+                    }
+                    DistanceMetric::Cosine | DistanceMetric::DotProduct => {
+                        // For similarity metrics, use inverse logic
+                        r.score >= radius
+                    }
+                }
+            })
+            .map(|r| SearchResult {
+                id: r.id,
+                score: r.score,
+                metadata: if include_metadata {
+                    self.storage.get_metadata(r.id).map(|m| {
+                        serde_json::to_string(&m.data).unwrap_or_default()
+                    })
+                } else {
+                    None
+                },
+            })
+            .collect();
+
+        // Limit results if max_results is specified
+        if max_results > 0 && results.len() > max_results {
+            results.truncate(max_results);
+        }
+
+        serde_wasm_bindgen::to_value(&results)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
     pub fn get_stats(&self) -> Result<JsValue, JsValue> {
         #[derive(Serialize)]
         struct Stats {
@@ -626,4 +754,43 @@ pub fn init_panic_hook() {
 #[wasm_bindgen]
 pub fn version() -> String {
     env!("CARGO_PKG_VERSION").to_string()
+}
+
+/// Normalize a vector to unit length (L2 norm = 1)
+/// Useful for cosine similarity calculations
+///
+/// # Arguments
+/// * `vector` - Input vector to normalize
+///
+/// # Returns
+/// Normalized vector with L2 norm = 1
+///
+/// # Example
+/// ```javascript
+/// import { normalize_vector } from './pkg/vecdb_wasm.js';
+/// const v = [3.0, 4.0];
+/// const normalized = normalize_vector(v); // [0.6, 0.8]
+/// ```
+#[wasm_bindgen]
+pub fn normalize_vector(vector: Vec<f32>) -> Vec<f32> {
+    crate::distance::normalize_vector(&vector)
+}
+
+/// Calculate the L2 norm (magnitude) of a vector
+///
+/// # Arguments
+/// * `vector` - Input vector
+///
+/// # Returns
+/// L2 norm of the vector
+///
+/// # Example
+/// ```javascript
+/// import { vector_norm } from './pkg/vecdb_wasm.js';
+/// const v = [3.0, 4.0];
+/// const norm = vector_norm(v); // 5.0
+/// ```
+#[wasm_bindgen]
+pub fn vector_norm(vector: Vec<f32>) -> f32 {
+    crate::distance::vector_norm(&vector)
 }
