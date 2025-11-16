@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VecDB-WASM Benchmark</title>
+    <title>VecDB-WASM Benchmark ⚡ Cyberpunk Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -11,23 +12,140 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --neon-cyan: #00ffff;
+            --neon-magenta: #ff00ff;
+            --neon-green: #00ff00;
+            --neon-yellow: #ffff00;
+            --neon-purple: #9d00ff;
+            --dark-bg: #0a0a0f;
+            --dark-card: #1a1a2e;
+            --grid-color: rgba(0, 255, 255, 0.1);
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px var(--neon-cyan),
+                            0 0 10px var(--neon-cyan),
+                            0 0 20px var(--neon-cyan);
+            }
+            50% {
+                box-shadow: 0 0 10px var(--neon-cyan),
+                            0 0 20px var(--neon-cyan),
+                            0 0 40px var(--neon-cyan);
+            }
+        }
+
+        @keyframes floatGrid {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 40px; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         body {
-            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
-            background: #0d1117;
-            color: #c9d1d9;
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--dark-bg);
+            color: var(--neon-cyan);
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: floatGrid 4s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, rgba(0, 255, 255, 0.03), transparent);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 1;
         }
 
         .container {
             max-width: 1400px;
             margin: 0 auto;
+            position: relative;
+            z-index: 2;
         }
 
         h1 {
+            font-family: 'Orbitron', sans-serif;
             text-align: center;
-            color: #58a6ff;
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            margin-bottom: 15px;
+            letter-spacing: 5px;
+            animation: glitch 10s infinite;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--neon-cyan);
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px var(--neon-cyan);
             margin-bottom: 30px;
-            font-size: 2.5em;
         }
 
         .benchmark-grid {
@@ -38,81 +156,192 @@
         }
 
         .card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 6px;
-            padding: 20px;
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid var(--neon-cyan);
+            border-left: 3px solid var(--neon-magenta);
+            padding: 25px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+
+        .card::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            border-right: 2px solid var(--neon-cyan);
+            border-bottom: 2px solid var(--neon-cyan);
+        }
+
+        .card:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            transform: translateY(-5px);
         }
 
         .card h2 {
-            color: #58a6ff;
-            margin-bottom: 15px;
-            font-size: 1.3em;
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-cyan);
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px var(--neon-cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card h2::before {
+            content: '▶';
+            color: var(--neon-magenta);
+            animation: pulse 2s infinite;
         }
 
         .metric {
             display: flex;
             justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #21262d;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            transition: all 0.3s;
         }
 
         .metric:last-child {
             border-bottom: none;
         }
 
+        .metric:hover {
+            background: rgba(0, 255, 255, 0.05);
+            padding-left: 10px;
+        }
+
         .metric-label {
-            color: #8b949e;
+            color: var(--neon-purple);
+            text-transform: uppercase;
+            font-size: 0.85em;
+            letter-spacing: 1px;
         }
 
         .metric-value {
-            color: #58a6ff;
+            color: var(--neon-cyan);
             font-weight: bold;
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
         }
 
         .metric-value.good {
-            color: #3fb950;
+            color: var(--neon-green);
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
         }
 
         .metric-value.warning {
-            color: #d29922;
+            color: var(--neon-yellow);
+            text-shadow: 0 0 5px rgba(255, 255, 0, 0.5);
         }
 
         .metric-value.error {
-            color: #f85149;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
+            animation: glitch 0.3s infinite;
         }
 
         button {
-            background: linear-gradient(180deg, #1f6feb, #1158c7);
-            color: white;
-            border: none;
             padding: 12px 24px;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+            color: var(--neon-cyan);
+            border: 2px solid var(--neon-cyan);
             cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
             margin: 5px;
-            transition: background 0.2s;
+        }
+
+        button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.3), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        button:hover::before {
+            width: 300px;
+            height: 300px;
         }
 
         button:hover {
-            background: linear-gradient(180deg, #1f6feb, #0d419d);
+            box-shadow: 0 0 20px var(--neon-cyan),
+                        inset 0 0 20px rgba(0, 255, 255, 0.2);
+            transform: translateY(-2px);
+            text-shadow: 0 0 10px var(--neon-cyan);
+        }
+
+        button:active {
+            transform: translateY(0);
         }
 
         button:disabled {
-            opacity: 0.5;
+            opacity: 0.3;
             cursor: not-allowed;
+            border-color: #666;
+            color: #666;
+        }
+
+        button:disabled:hover {
+            box-shadow: none;
+            transform: none;
+            text-shadow: none;
         }
 
         .controls {
             text-align: center;
             margin: 30px 0;
+            padding: 20px;
+            background: rgba(26, 26, 46, 0.5);
+            border: 1px solid var(--neon-purple);
+            position: relative;
+        }
+
+        .controls::before {
+            content: '◈ BENCHMARK CONTROLS ◈';
+            position: absolute;
+            top: -12px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--dark-bg);
+            padding: 0 15px;
+            color: var(--neon-purple);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 0.9em;
+            letter-spacing: 2px;
         }
 
         .chart {
-            background: #0d1117;
-            border: 1px solid #30363d;
-            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-purple);
+            border-radius: 0;
             padding: 20px;
             margin-top: 20px;
             min-height: 300px;
@@ -129,14 +358,17 @@
         .bar {
             flex: 1;
             margin: 0 10px;
-            background: linear-gradient(180deg, #58a6ff, #1f6feb);
-            border-radius: 4px 4px 0 0;
+            background: linear-gradient(180deg, var(--neon-cyan), var(--neon-magenta));
+            border-radius: 0;
             position: relative;
             transition: all 0.3s;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
         }
 
         .bar:hover {
-            background: linear-gradient(180deg, #79c0ff, #58a6ff);
+            background: linear-gradient(180deg, var(--neon-magenta), var(--neon-purple));
+            box-shadow: 0 0 20px rgba(255, 0, 255, 0.8);
+            transform: scaleY(1.05);
         }
 
         .bar-label {
@@ -145,7 +377,8 @@
             width: 100%;
             text-align: center;
             font-size: 12px;
-            color: #8b949e;
+            color: var(--neon-purple);
+            font-family: 'Orbitron', sans-serif;
         }
 
         .bar-value {
@@ -155,29 +388,74 @@
             text-align: center;
             font-size: 12px;
             font-weight: bold;
-            color: #58a6ff;
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 5px var(--neon-cyan);
         }
 
         .progress {
-            background: #21262d;
-            border-radius: 6px;
-            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid var(--neon-purple);
+            border-radius: 0;
+            height: 10px;
             overflow: hidden;
             margin: 10px 0;
+            position: relative;
         }
 
         .progress-bar {
-            background: linear-gradient(90deg, #1f6feb, #58a6ff);
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta));
             height: 100%;
             transition: width 0.3s;
+            box-shadow: 0 0 10px var(--neon-cyan);
+            position: relative;
+        }
+
+        .progress-bar::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+            animation: shimmer 2s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
         }
 
         .status {
             text-align: center;
-            padding: 15px;
-            background: #161b22;
-            border-radius: 6px;
+            padding: 20px;
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid var(--neon-cyan);
+            border-left: 3px solid var(--neon-green);
             margin: 20px 0;
+            font-family: 'Orbitron', sans-serif;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--neon-cyan);
+            position: relative;
+        }
+
+        .status::before {
+            content: '▶';
+            position: absolute;
+            left: 20px;
+            color: var(--neon-green);
+            animation: pulse 2s infinite;
+        }
+
+        .status.running {
+            border-left-color: var(--neon-magenta);
+            background: rgba(255, 0, 255, 0.1);
+            animation: pulse 1s infinite;
+        }
+
+        .status.running::before {
+            color: var(--neon-magenta);
         }
 
         table {
@@ -187,41 +465,126 @@
         }
 
         th, td {
-            padding: 12px;
+            padding: 15px;
             text-align: left;
-            border-bottom: 1px solid #21262d;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            font-family: 'Share Tech Mono', monospace;
         }
 
         th {
-            background: #161b22;
-            color: #58a6ff;
-            font-weight: 600;
+            background: rgba(0, 255, 255, 0.1);
+            color: var(--neon-cyan);
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 5px var(--neon-cyan);
+            border-bottom: 2px solid var(--neon-cyan);
+        }
+
+        td {
+            color: var(--neon-purple);
+        }
+
+        tr {
+            transition: all 0.3s;
         }
 
         tr:hover {
-            background: #161b22;
+            background: rgba(0, 255, 255, 0.05);
+            box-shadow: inset 3px 0 0 var(--neon-cyan);
+        }
+
+        tbody tr {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        /* Loading indicator */
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(0, 255, 255, 0.1);
+            border-top: 4px solid var(--neon-cyan);
+            border-right: 4px solid var(--neon-magenta);
+            border-bottom: 4px solid var(--neon-purple);
+            border-radius: 50%;
+            animation: spin 1s linear infinite, glow 2s ease-in-out infinite;
+            margin: 0 auto 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2em;
+                letter-spacing: 3px;
+            }
+
+            .benchmark-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .controls {
+                padding: 30px 20px 20px;
+            }
+
+            button {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            th, td {
+                padding: 10px;
+                font-size: 0.85em;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 5px var(--neon-cyan);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-magenta);
+            box-shadow: 0 0 10px var(--neon-magenta);
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>⚡ VecDB-WASM Performance Benchmark</h1>
+        <h1>⚡ VECDB-WASM BENCHMARK ⚡</h1>
+        <div class="subtitle">◈ PERFORMANCE ANALYSIS SUITE ◈</div>
 
         <div class="controls">
-            <button onclick="runAllBenchmarks()">Run All Benchmarks</button>
-            <button onclick="runInsertBenchmark()">Insert Performance</button>
-            <button onclick="runSearchBenchmark()">Search Performance</button>
-            <button onclick="runScalabilityTest()">Scalability Test</button>
-            <button onclick="clearResults()">Clear Results</button>
+            <button onclick="runAllBenchmarks()">[ RUN ALL BENCHMARKS ]</button>
+            <button onclick="runInsertBenchmark()">[ INSERT PERFORMANCE ]</button>
+            <button onclick="runSearchBenchmark()">[ SEARCH PERFORMANCE ]</button>
+            <button onclick="runScalabilityTest()">[ SCALABILITY TEST ]</button>
+            <button onclick="clearResults()">[ CLEAR RESULTS ]</button>
         </div>
 
         <div class="status" id="status">
-            Ready to run benchmarks
+            SYSTEM READY >> AWAITING BENCHMARK EXECUTION
         </div>
 
         <div class="benchmark-grid">
             <div class="card">
-                <h2>📊 Insert Performance</h2>
+                <h2>Insert Performance</h2>
                 <div id="insert-metrics">
                     <div class="metric">
                         <span class="metric-label">Total Time:</span>
@@ -239,7 +602,7 @@
             </div>
 
             <div class="card">
-                <h2>🔍 Search Performance</h2>
+                <h2>Search Performance</h2>
                 <div id="search-metrics">
                     <div class="metric">
                         <span class="metric-label">Avg Search Time:</span>
@@ -257,7 +620,7 @@
             </div>
 
             <div class="card">
-                <h2>💾 Memory Usage</h2>
+                <h2>Memory Usage</h2>
                 <div id="memory-metrics">
                     <div class="metric">
                         <span class="metric-label">Vectors Stored:</span>
@@ -275,7 +638,7 @@
             </div>
 
             <div class="card">
-                <h2>⚡ SIMD vs Scalar</h2>
+                <h2>SIMD vs Scalar</h2>
                 <div id="simd-metrics">
                     <div class="metric">
                         <span class="metric-label">SIMD Speedup:</span>
@@ -290,14 +653,18 @@
         </div>
 
         <div class="card">
-            <h2>📈 Performance Comparison</h2>
+            <h2>Performance Comparison</h2>
             <div class="chart">
-                <div class="bar-chart" id="comparison-chart"></div>
+                <div class="bar-chart" id="comparison-chart">
+                    <div style="color: var(--neon-purple); text-align: center; width: 100%; padding: 40px;">
+                        [ NO DATA - RUN SCALABILITY TEST ]
+                    </div>
+                </div>
             </div>
         </div>
 
         <div class="card">
-            <h2>📋 Detailed Results</h2>
+            <h2>Detailed Results</h2>
             <table id="results-table">
                 <thead>
                     <tr>
@@ -310,6 +677,11 @@
                     </tr>
                 </thead>
                 <tbody id="results-body">
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: var(--neon-purple); padding: 30px;">
+                            [ NO RESULTS - RUN A BENCHMARK TO START ]
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -323,35 +695,46 @@
 
         async function ensureInit() {
             if (!initialized) {
+                updateStatus('INITIALIZING WASM CORE...', true);
                 await init();
                 initialized = true;
+                updateStatus('SYSTEM READY >> AWAITING BENCHMARK EXECUTION');
             }
         }
 
         function updateStatus(message, isRunning = false) {
             const status = document.getElementById('status');
             status.textContent = message;
-            status.style.background = isRunning ? '#1f6feb' : '#161b22';
+            if (isRunning) {
+                status.classList.add('running');
+            } else {
+                status.classList.remove('running');
+            }
         }
 
         function addResult(test, vectors, dimension, time, throughput) {
-            results.push({ test, vectors, dimension, time, throughput });
+            // Clear the "no results" row if it exists
             const tbody = document.getElementById('results-body');
+            if (results.length === 0) {
+                tbody.innerHTML = '';
+            }
+
+            results.push({ test, vectors, dimension, time, throughput });
             const row = tbody.insertRow(0);
 
             row.innerHTML = `
-                <td>${test}</td>
+                <td style="color: var(--neon-cyan); font-weight: bold;">${test}</td>
                 <td>${vectors.toLocaleString()}</td>
                 <td>${dimension}</td>
-                <td>${time.toFixed(2)}</td>
-                <td>${throughput}</td>
-                <td><span class="metric-value good">✓</span></td>
+                <td style="color: var(--neon-magenta);">${time.toFixed(2)}</td>
+                <td style="color: var(--neon-cyan);">${throughput}</td>
+                <td><span class="metric-value good">✓ COMPLETE</span></td>
             `;
         }
 
         window.runInsertBenchmark = async function() {
             await ensureInit();
-            updateStatus('Running insert benchmark...', true);
+            updateStatus('RUNNING INSERT BENCHMARK...', true);
 
             const dimension = 128;
             const numVectors = 10000;
@@ -369,20 +752,25 @@
             const avgLatency = (elapsed / numVectors).toFixed(3);
 
             document.querySelector('#insert-metrics .metric:nth-child(1) .metric-value').textContent = `${elapsed.toFixed(0)} ms`;
+            document.querySelector('#insert-metrics .metric:nth-child(1) .metric-value').className = 'metric-value good';
+
             document.querySelector('#insert-metrics .metric:nth-child(2) .metric-value').textContent = `${throughput}`;
+            document.querySelector('#insert-metrics .metric:nth-child(2) .metric-value').className = 'metric-value good';
+
             document.querySelector('#insert-metrics .metric:nth-child(3) .metric-value').textContent = `${avgLatency} ms`;
+            document.querySelector('#insert-metrics .metric:nth-child(3) .metric-value').className = 'metric-value good';
 
             document.getElementById('vectors-stored').textContent = numVectors.toLocaleString();
             document.getElementById('dimension').textContent = dimension;
             document.getElementById('index-type').textContent = 'HNSW';
 
             addResult('Insert', numVectors, dimension, elapsed, `${throughput} vec/s`);
-            updateStatus(`Insert benchmark complete: ${throughput} vectors/sec`);
+            updateStatus(`INSERT BENCHMARK COMPLETE >> ${throughput} vectors/sec`);
         };
 
         window.runSearchBenchmark = async function() {
             await ensureInit();
-            updateStatus('Running search benchmark...', true);
+            updateStatus('RUNNING SEARCH BENCHMARK...', true);
 
             const dimension = 128;
             const numVectors = 10000;
@@ -414,22 +802,28 @@
             const p95 = latencies[Math.floor(latencies.length * 0.95)];
 
             document.querySelector('#search-metrics .metric:nth-child(1) .metric-value').textContent = `${avgLatency.toFixed(2)} ms`;
+            document.querySelector('#search-metrics .metric:nth-child(1) .metric-value').className = 'metric-value good';
+
             document.querySelector('#search-metrics .metric:nth-child(2) .metric-value').textContent = qps;
+            document.querySelector('#search-metrics .metric:nth-child(2) .metric-value').className = 'metric-value good';
+
             document.querySelector('#search-metrics .metric:nth-child(3) .metric-value').textContent = `${p95.toFixed(2)} ms`;
+            document.querySelector('#search-metrics .metric:nth-child(3) .metric-value').className = 'metric-value good';
 
             addResult('Search', numVectors, dimension, elapsed, `${qps} QPS`);
-            updateStatus(`Search benchmark complete: ${qps} QPS`);
+            updateStatus(`SEARCH BENCHMARK COMPLETE >> ${qps} QPS`);
         };
 
         window.runScalabilityTest = async function() {
             await ensureInit();
-            updateStatus('Running scalability test...', true);
+            updateStatus('RUNNING SCALABILITY TEST...', true);
 
             const dimension = 128;
             const sizes = [1000, 5000, 10000, 25000, 50000];
             const chartData = [];
 
             for (const size of sizes) {
+                updateStatus(`SCALABILITY TEST >> Processing ${size} vectors...`, true);
                 const db = new VectorDB(dimension, Metric.Cosine, IndexType.HNSW);
 
                 // Insert vectors
@@ -471,27 +865,55 @@
                 chart.appendChild(bar);
             });
 
-            updateStatus('Scalability test complete');
+            updateStatus('SCALABILITY TEST COMPLETE >> All vectors processed');
         };
 
         window.runAllBenchmarks = async function() {
-            await runInsertBenchmark();
-            await new Promise(resolve => setTimeout(resolve, 500));
-            await runSearchBenchmark();
-            await new Promise(resolve => setTimeout(resolve, 500));
-            await runScalabilityTest();
+            const buttons = document.querySelectorAll('button');
+            buttons.forEach(btn => btn.disabled = true);
+
+            try {
+                await runInsertBenchmark();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await runSearchBenchmark();
+                await new Promise(resolve => setTimeout(resolve, 500));
+                await runScalabilityTest();
+                updateStatus('ALL BENCHMARKS COMPLETE >> System ready for next test');
+            } finally {
+                buttons.forEach(btn => btn.disabled = false);
+            }
         };
 
         window.clearResults = function() {
             results = [];
-            document.getElementById('results-body').innerHTML = '';
-            document.getElementById('comparison-chart').innerHTML = '';
-            updateStatus('Results cleared');
+            const tbody = document.getElementById('results-body');
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="6" style="text-align: center; color: var(--neon-purple); padding: 30px;">
+                        [ NO RESULTS - RUN A BENCHMARK TO START ]
+                    </td>
+                </tr>
+            `;
+            document.getElementById('comparison-chart').innerHTML = `
+                <div style="color: var(--neon-purple); text-align: center; width: 100%; padding: 40px;">
+                    [ NO DATA - RUN SCALABILITY TEST ]
+                </div>
+            `;
+
+            // Reset metrics
+            document.querySelectorAll('.metric-value').forEach(el => {
+                if (!['vectors-stored', 'dimension', 'index-type'].includes(el.id)) {
+                    el.textContent = '-';
+                    el.className = 'metric-value';
+                }
+            });
+
+            updateStatus('RESULTS CLEARED >> System ready');
         };
 
         // Auto-initialize
         ensureInit().then(() => {
-            updateStatus('Ready to run benchmarks');
+            updateStatus('SYSTEM READY >> AWAITING BENCHMARK EXECUTION');
         });
     </script>
 </body>

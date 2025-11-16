@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VecDB-WASM - Browser Compatibility Test</title>
+    <title>VecDB-WASM Browser Compatibility ⚡ Cyberpunk Edition</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <style>
         * {
             margin: 0;
@@ -11,78 +12,313 @@
             box-sizing: border-box;
         }
 
+        :root {
+            --neon-cyan: #00ffff;
+            --neon-magenta: #ff00ff;
+            --neon-green: #00ff00;
+            --neon-yellow: #ffff00;
+            --neon-purple: #9d00ff;
+            --dark-bg: #0a0a0f;
+            --dark-card: #1a1a2e;
+            --grid-color: rgba(0, 255, 255, 0.1);
+        }
+
+        @keyframes scanline {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(100vh); }
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0); }
+            20% { transform: translate(-2px, 2px); }
+            40% { transform: translate(-2px, -2px); }
+            60% { transform: translate(2px, 2px); }
+            80% { transform: translate(2px, -2px); }
+            100% { transform: translate(0); }
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 5px var(--neon-cyan),
+                            0 0 10px var(--neon-cyan),
+                            0 0 20px var(--neon-cyan);
+            }
+            50% {
+                box-shadow: 0 0 10px var(--neon-cyan),
+                            0 0 20px var(--neon-cyan),
+                            0 0 40px var(--neon-cyan);
+            }
+        }
+
+        @keyframes floatGrid {
+            0% { background-position: 0 0; }
+            100% { background-position: 40px 40px; }
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Share Tech Mono', monospace;
+            background: var(--dark-bg);
             min-height: 100vh;
             padding: 20px;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* Animated grid background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-image:
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+            animation: floatGrid 4s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Scanline effect */
+        body::after {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 100px;
+            background: linear-gradient(transparent, rgba(0, 255, 255, 0.03), transparent);
+            animation: scanline 8s linear infinite;
+            pointer-events: none;
+            z-index: 1;
         }
 
         .container {
-            max-width: 900px;
+            max-width: 1000px;
             margin: 0 auto;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            overflow: hidden;
+            position: relative;
+            z-index: 2;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
+            background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(10, 10, 15, 0.9) 100%);
+            border: 2px solid var(--neon-cyan);
+            border-radius: 0;
             padding: 40px;
             text-align: center;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5),
+                        inset 0 0 20px rgba(0, 255, 255, 0.1);
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            background: linear-gradient(45deg, var(--neon-cyan), var(--neon-magenta), var(--neon-purple), var(--neon-cyan));
+            z-index: -1;
+            filter: blur(10px);
+            opacity: 0.3;
         }
 
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
+            font-family: 'Orbitron', sans-serif;
+            font-size: 3em;
+            font-weight: 900;
+            background: linear-gradient(90deg, var(--neon-cyan), var(--neon-magenta), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+            margin-bottom: 15px;
+            letter-spacing: 5px;
+            animation: glitch 10s infinite;
         }
 
         .header p {
-            opacity: 0.9;
-            font-size: 1.1em;
+            color: var(--neon-cyan);
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px var(--neon-cyan);
         }
 
         .content {
-            padding: 40px;
+            display: grid;
+            gap: 20px;
         }
 
-        .status-section {
-            margin-bottom: 30px;
+        .section {
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid var(--neon-cyan);
+            border-left: 3px solid var(--neon-magenta);
+            padding: 25px;
+            position: relative;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s;
         }
 
-        .status-section h2 {
-            color: #2d3748;
+        .section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-cyan), transparent);
+        }
+
+        .section::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            width: 20px;
+            height: 20px;
+            border-right: 2px solid var(--neon-cyan);
+            border-bottom: 2px solid var(--neon-cyan);
+        }
+
+        .section:hover {
+            border-color: var(--neon-cyan);
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            transform: translateY(-2px);
+        }
+
+        .section h2 {
+            font-family: 'Orbitron', sans-serif;
+            color: var(--neon-cyan);
             margin-bottom: 20px;
             font-size: 1.5em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            text-shadow: 0 0 10px var(--neon-cyan);
             display: flex;
             align-items: center;
             gap: 10px;
         }
 
+        .section h2::before {
+            content: '▶';
+            color: var(--neon-magenta);
+            animation: pulse 2s infinite;
+        }
+
         .status-badge {
             display: inline-block;
             padding: 8px 16px;
-            border-radius: 20px;
-            font-weight: 600;
-            font-size: 0.9em;
+            font-weight: 700;
+            font-size: 0.85em;
             margin-left: auto;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-family: 'Orbitron', sans-serif;
+            border: 2px solid;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status-badge::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .status-badge:hover::before {
+            left: 100%;
         }
 
         .status-badge.success {
-            background: #c6f6d5;
-            color: #22543d;
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.1), rgba(0, 255, 255, 0.1));
+            color: var(--neon-green);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.3);
         }
 
         .status-badge.warning {
-            background: #fef3c7;
-            color: #92400e;
+            background: linear-gradient(135deg, rgba(255, 255, 0, 0.1), rgba(255, 165, 0, 0.1));
+            color: var(--neon-yellow);
+            border-color: var(--neon-yellow);
+            box-shadow: 0 0 10px rgba(255, 255, 0, 0.3);
         }
 
         .status-badge.error {
-            background: #fed7d7;
-            color: #742a2a;
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.1), rgba(255, 0, 0, 0.1));
+            color: var(--neon-magenta);
+            border-color: var(--neon-magenta);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.3);
+            animation: glitch 2s infinite;
+        }
+
+        .browser-info {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .browser-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            transition: all 0.3s;
+        }
+
+        .browser-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .browser-info-item:hover {
+            background: rgba(0, 255, 255, 0.05);
+            border-left: 3px solid var(--neon-cyan);
+            padding-left: 15px;
+        }
+
+        .browser-info-label {
+            font-weight: 600;
+            color: var(--neon-purple);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 0.9em;
+        }
+
+        .browser-info-value {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            text-shadow: 0 0 5px rgba(0, 255, 255, 0.5);
         }
 
         .feature-list {
@@ -91,235 +327,374 @@
         }
 
         .feature {
-            background: #f7fafc;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.03), transparent);
             padding: 20px;
-            border-radius: 8px;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            border-left: 4px solid #cbd5e0;
+            border-left: 4px solid;
+            border-right: 1px solid rgba(0, 255, 255, 0.2);
+            transition: all 0.3s;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .feature:hover {
+            background: rgba(0, 255, 255, 0.1);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+            transform: translateX(5px);
         }
 
         .feature.supported {
-            border-left-color: #48bb78;
+            border-left-color: var(--neon-green);
         }
 
         .feature.unsupported {
-            border-left-color: #f56565;
+            border-left-color: var(--neon-magenta);
         }
 
         .feature-name {
-            font-weight: 600;
-            color: #2d3748;
+            font-weight: 700;
+            color: var(--neon-cyan);
             margin-bottom: 5px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .feature-desc {
-            color: #718096;
-            font-size: 0.9em;
+            color: var(--neon-purple);
+            font-size: 0.85em;
         }
 
         .feature-status {
             display: flex;
             align-items: center;
-            gap: 8px;
-            font-weight: 600;
+            gap: 10px;
+            font-weight: 700;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .feature-status.supported {
-            color: #22543d;
+            color: var(--neon-green);
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
         }
 
         .feature-status.unsupported {
-            color: #742a2a;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
         }
 
         .icon {
-            width: 24px;
-            height: 24px;
+            width: 30px;
+            height: 30px;
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
             font-weight: bold;
+            font-size: 1.2em;
+            border: 2px solid;
+            position: relative;
         }
 
         .icon.check {
-            background: #48bb78;
-            color: white;
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.2), rgba(0, 255, 255, 0.2));
+            color: var(--neon-green);
+            border-color: var(--neon-green);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
         }
 
         .icon.cross {
-            background: #f56565;
-            color: white;
+            background: linear-gradient(135deg, rgba(255, 0, 255, 0.2), rgba(255, 0, 0, 0.2));
+            color: var(--neon-magenta);
+            border-color: var(--neon-magenta);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
         }
 
         .warning-box {
-            background: #fff3cd;
-            border: 1px solid #ffc107;
-            border-radius: 8px;
+            background: linear-gradient(135deg, rgba(255, 255, 0, 0.05), rgba(255, 165, 0, 0.05));
+            border: 2px solid var(--neon-yellow);
             padding: 20px;
             margin: 20px 0;
+            position: relative;
+            box-shadow: 0 0 20px rgba(255, 255, 0, 0.2);
+            animation: pulse 3s infinite;
         }
 
         .warning-box h3 {
-            color: #856404;
-            margin-bottom: 10px;
+            color: var(--neon-yellow);
+            margin-bottom: 15px;
             display: flex;
             align-items: center;
             gap: 10px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--neon-yellow);
         }
 
         .warning-box ul {
-            color: #856404;
+            color: var(--neon-yellow);
             margin-left: 30px;
         }
 
         .warning-box li {
-            margin: 8px 0;
-        }
-
-        .info-box {
-            background: #e3f2fd;
-            border: 1px solid #2196f3;
-            border-radius: 8px;
-            padding: 20px;
-            margin: 20px 0;
-        }
-
-        .info-box h3 {
-            color: #0d47a1;
-            margin-bottom: 10px;
-        }
-
-        .info-box p {
-            color: #1565c0;
+            margin: 10px 0;
             line-height: 1.6;
         }
 
-        .browser-info {
-            background: #f7fafc;
+        .info-box {
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.05), rgba(157, 0, 255, 0.05));
+            border: 2px solid var(--neon-purple);
             padding: 20px;
-            border-radius: 8px;
-            margin-bottom: 20px;
+            margin: 20px 0;
+            position: relative;
+            box-shadow: 0 0 20px rgba(157, 0, 255, 0.2);
         }
 
-        .browser-info-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid #e2e8f0;
+        .info-box::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--neon-purple), transparent);
         }
 
-        .browser-info-item:last-child {
-            border-bottom: none;
+        .info-box h3 {
+            color: var(--neon-cyan);
+            margin-bottom: 15px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--neon-cyan);
         }
 
-        .browser-info-label {
-            font-weight: 600;
-            color: #4a5568;
+        .info-box p {
+            color: var(--neon-purple);
+            line-height: 1.8;
+            margin-bottom: 10px;
         }
 
-        .browser-info-value {
-            color: #718096;
+        .info-box strong {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+        }
+
+        .info-box em {
+            color: var(--neon-magenta);
+        }
+
+        .recommendations {
+            background: linear-gradient(135deg, rgba(0, 255, 0, 0.05), rgba(0, 255, 255, 0.05));
+            border: 2px solid var(--neon-green);
+            padding: 20px;
+            margin-top: 20px;
+            box-shadow: 0 0 20px rgba(0, 255, 0, 0.2);
+        }
+
+        .recommendations h3 {
+            color: var(--neon-green);
+            margin-bottom: 15px;
+            font-family: 'Orbitron', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px var(--neon-green);
+        }
+
+        .recommendations ul {
+            color: var(--neon-green);
+            margin-left: 20px;
+        }
+
+        .recommendations li {
+            margin: 10px 0;
+            line-height: 1.6;
         }
 
         .test-button {
             width: 100%;
             padding: 15px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 1.1em;
-            font-weight: 600;
+            background: linear-gradient(135deg, rgba(0, 255, 255, 0.1), rgba(255, 0, 255, 0.1));
+            color: var(--neon-cyan);
+            border: 2px solid var(--neon-cyan);
             cursor: pointer;
+            font-family: 'Orbitron', sans-serif;
+            font-weight: 700;
+            font-size: 1.1em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
             margin-top: 20px;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .test-button::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 0;
+            height: 0;
+            background: radial-gradient(circle, rgba(0, 255, 255, 0.3), transparent);
+            transform: translate(-50%, -50%);
+            transition: width 0.6s, height 0.6s;
+        }
+
+        .test-button:hover::before {
+            width: 400px;
+            height: 400px;
         }
 
         .test-button:hover {
+            box-shadow: 0 0 20px var(--neon-cyan),
+                        inset 0 0 20px rgba(0, 255, 255, 0.2);
             transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+            text-shadow: 0 0 10px var(--neon-cyan);
         }
 
-        .recommendations {
-            background: #f0fdf4;
-            border: 1px solid #86efac;
-            border-radius: 8px;
-            padding: 20px;
-            margin-top: 20px;
+        .test-button:active {
+            transform: translateY(0);
         }
 
-        .recommendations h3 {
-            color: #166534;
-            margin-bottom: 15px;
-        }
-
-        .recommendations ul {
-            color: #166534;
-            margin-left: 20px;
-        }
-
-        .recommendations li {
-            margin: 8px 0;
-            line-height: 1.6;
-        }
-
-        #loadingSpinner {
+        .loading {
             text-align: center;
-            padding: 40px;
+            padding: 80px 40px;
+        }
+
+        .loading p {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            margin-top: 30px;
+            text-shadow: 0 0 10px var(--neon-cyan);
         }
 
         .spinner {
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+            width: 80px;
+            height: 80px;
+            border: 4px solid rgba(0, 255, 255, 0.1);
+            border-top: 4px solid var(--neon-cyan);
+            border-right: 4px solid var(--neon-magenta);
+            border-bottom: 4px solid var(--neon-purple);
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            animation: spin 1s linear infinite, glow 2s ease-in-out infinite;
+            margin: 0 auto;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
         }
 
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        #testResults {
+            margin-top: 20px;
+        }
+
+        .perf-metric {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            margin-bottom: 10px;
+            border-left: 3px solid var(--neon-cyan);
+            transition: all 0.3s;
+        }
+
+        .perf-metric:hover {
+            background: rgba(0, 255, 255, 0.05);
+            border-left-color: var(--neon-magenta);
+            transform: translateX(5px);
+        }
+
+        .perf-metric strong {
+            color: var(--neon-cyan);
+            font-family: 'Orbitron', sans-serif;
+            display: block;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .perf-metric div {
+            color: var(--neon-purple);
+            line-height: 1.6;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2em;
+                letter-spacing: 3px;
+            }
+
+            .section h2 {
+                font-size: 1.2em;
+            }
+
+            .feature {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--neon-cyan);
+            box-shadow: 0 0 5px var(--neon-cyan);
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--neon-magenta);
+            box-shadow: 0 0 10px var(--neon-magenta);
         }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🔍 Browser Compatibility Check</h1>
-            <p>VecDB-WASM Feature Detection & Browser Support</p>
+            <h1>⚡ BROWSER COMPATIBILITY ⚡</h1>
+            <p>◈ VecDB-WASM Feature Detection & Support Analysis ◈</p>
         </div>
 
         <div class="content">
             <div id="loadingSpinner">
-                <div class="spinner"></div>
-                <p>Initializing WASM and checking compatibility...</p>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>[ INITIALIZING WASM CORE... ]</p>
+                </div>
             </div>
 
             <div id="compatReport" style="display: none;">
                 <!-- Browser Information -->
-                <div class="status-section">
+                <div class="section">
                     <h2>
-                        🌐 Browser Information
+                        Browser Information
                         <span class="status-badge" id="overallStatus">Checking...</span>
                     </h2>
                     <div class="browser-info" id="browserInfo"></div>
                 </div>
 
                 <!-- Feature Support -->
-                <div class="status-section">
-                    <h2>✨ Feature Support</h2>
+                <div class="section">
+                    <h2>Feature Support Matrix</h2>
                     <div class="feature-list" id="featureList"></div>
                 </div>
 
                 <!-- Warnings -->
                 <div id="warningsSection" style="display: none;">
                     <div class="warning-box">
-                        <h3>⚠️ Warnings</h3>
+                        <h3>⚠ WARNING SIGNALS DETECTED</h3>
                         <ul id="warningsList"></ul>
                     </div>
                 </div>
@@ -327,28 +702,28 @@
                 <!-- Recommendations -->
                 <div id="recommendationsSection" style="display: none;">
                     <div class="recommendations">
-                        <h3>✅ Recommended Features</h3>
+                        <h3>✓ RECOMMENDED OPTIMIZATIONS</h3>
                         <ul id="recommendationsList"></ul>
                     </div>
                 </div>
 
                 <!-- Browser Recommendations -->
                 <div class="info-box">
-                    <h3>💡 Browser Recommendations</h3>
-                    <p><strong>Best Performance:</strong> Chrome, Edge, Firefox (latest versions)</p>
-                    <p><strong>Good Performance:</strong> Safari 15+, Opera</p>
-                    <p><strong>Not Recommended:</strong> Internet Explorer (not supported)</p>
-                    <p style="margin-top: 10px;"><em>For optimal performance, enable WASM SIMD in your browser flags if available.</em></p>
+                    <h3>◈ BROWSER RECOMMENDATIONS</h3>
+                    <p><strong>Optimal Performance:</strong> Chrome, Edge, Firefox (latest versions with SIMD enabled)</p>
+                    <p><strong>Good Performance:</strong> Safari 15+, Opera (SIMD support varies)</p>
+                    <p><strong>Not Recommended:</strong> Internet Explorer (WebAssembly not supported)</p>
+                    <p><em>For maximum performance, enable WASM SIMD in your browser flags if available.</em></p>
                 </div>
 
                 <!-- Test Button -->
                 <button class="test-button" onclick="runQuickTest()">
-                    Run Quick Performance Test
+                    [ RUN QUICK PERFORMANCE TEST ]
                 </button>
 
-                <div id="testResults" style="display: none; margin-top: 20px;">
+                <div id="testResults" style="display: none;">
                     <div class="info-box">
-                        <h3>🚀 Performance Test Results</h3>
+                        <h3>◈ PERFORMANCE TEST RESULTS</h3>
                         <div id="perfResults"></div>
                     </div>
                 </div>
@@ -394,10 +769,12 @@
 
             } catch (e) {
                 document.getElementById('loadingSpinner').innerHTML = `
-                    <div style="color: #742a2a;">
-                        <h2>❌ Initialization Failed</h2>
-                        <p>Error: ${e}</p>
-                        <p>Your browser may not support WebAssembly. Please use a modern browser.</p>
+                    <div class="loading">
+                        <h2 style="color: var(--neon-magenta); font-family: 'Orbitron', sans-serif; text-shadow: 0 0 10px var(--neon-magenta); animation: glitch 0.3s infinite;">
+                            ✗ INITIALIZATION FAILED
+                        </h2>
+                        <p style="color: var(--neon-magenta); margin-top: 20px;">ERROR: ${e}</p>
+                        <p style="color: var(--neon-yellow); margin-top: 10px;">Your browser may not support WebAssembly. Please use a modern browser.</p>
                     </div>
                 `;
             }
@@ -406,24 +783,26 @@
         function updateBrowserInfo(report) {
             const infoHtml = `
                 <div class="browser-info-item">
-                    <span class="browser-info-label">Browser:</span>
+                    <span class="browser-info-label">◈ Browser:</span>
                     <span class="browser-info-value">${report.browser_name}</span>
                 </div>
                 <div class="browser-info-item">
-                    <span class="browser-info-label">WebAssembly:</span>
-                    <span class="browser-info-value">${report.has_wasm ? '✅ Supported' : '❌ Not Supported'}</span>
+                    <span class="browser-info-label">◈ WebAssembly:</span>
+                    <span class="browser-info-value">${report.has_wasm ? '✓ Supported' : '✗ Not Supported'}</span>
                 </div>
                 <div class="browser-info-item">
-                    <span class="browser-info-label">IndexedDB:</span>
-                    <span class="browser-info-value">${report.has_indexeddb ? '✅ Supported' : '❌ Not Supported'}</span>
+                    <span class="browser-info-label">◈ IndexedDB:</span>
+                    <span class="browser-info-value">${report.has_indexeddb ? '✓ Supported' : '✗ Not Supported'}</span>
                 </div>
                 <div class="browser-info-item">
-                    <span class="browser-info-label">WASM SIMD:</span>
-                    <span class="browser-info-value">${report.has_simd ? '✅ Enabled (2-4x faster)' : '⚠️ Not Enabled (using scalar fallback)'}</span>
+                    <span class="browser-info-label">◈ WASM SIMD:</span>
+                    <span class="browser-info-value" style="color: ${report.has_simd ? 'var(--neon-green)' : 'var(--neon-yellow)'}">
+                        ${report.has_simd ? '✓ Enabled (2-4x faster)' : '⚠ Not Enabled (using scalar fallback)'}
+                    </span>
                 </div>
                 <div class="browser-info-item">
-                    <span class="browser-info-label">BigInt64Array:</span>
-                    <span class="browser-info-value">${report.has_bigint64array ? '✅ Supported' : '❌ Not Supported'}</span>
+                    <span class="browser-info-label">◈ BigInt64Array:</span>
+                    <span class="browser-info-value">${report.has_bigint64array ? '✓ Supported' : '✗ Not Supported'}</span>
                 </div>
             `;
             document.getElementById('browserInfo').innerHTML = infoHtml;
@@ -433,25 +812,25 @@
             const features = [
                 {
                     name: 'WebAssembly',
-                    desc: 'Required for running VecDB-WASM',
+                    desc: 'Required for running VecDB-WASM core engine',
                     supported: report.has_wasm,
                     critical: true
                 },
                 {
                     name: 'IndexedDB Persistence',
-                    desc: 'Save and load databases in the browser',
+                    desc: 'Save and load databases in browser storage',
                     supported: report.has_indexeddb,
                     critical: false
                 },
                 {
                     name: 'WASM SIMD',
-                    desc: '2-4x faster distance calculations',
+                    desc: '2-4x faster distance calculations using SIMD instructions',
                     supported: report.has_simd,
                     critical: false
                 },
                 {
                     name: 'BigInt64Array',
-                    desc: 'Support for large integer arrays',
+                    desc: 'Support for large integer arrays and advanced operations',
                     supported: report.has_bigint64array,
                     critical: false
                 }
@@ -460,14 +839,14 @@
             const featuresHtml = features.map(feature => `
                 <div class="feature ${feature.supported ? 'supported' : 'unsupported'}">
                     <div>
-                        <div class="feature-name">${feature.name}${feature.critical ? ' (Required)' : ''}</div>
+                        <div class="feature-name">${feature.name}${feature.critical ? ' [REQUIRED]' : ''}</div>
                         <div class="feature-desc">${feature.desc}</div>
                     </div>
                     <div class="feature-status ${feature.supported ? 'supported' : 'unsupported'}">
                         <span class="icon ${feature.supported ? 'check' : 'cross'}">
                             ${feature.supported ? '✓' : '✗'}
                         </span>
-                        ${feature.supported ? 'Supported' : 'Not Supported'}
+                        ${feature.supported ? 'Online' : 'Offline'}
                     </div>
                 </div>
             `).join('');
@@ -479,7 +858,7 @@
             if (warnings.length === 0) return;
 
             document.getElementById('warningsSection').style.display = 'block';
-            const warningsHtml = warnings.map(w => `<li>${w}</li>`).join('');
+            const warningsHtml = warnings.map(w => `<li>▶ ${w}</li>`).join('');
             document.getElementById('warningsList').innerHTML = warningsHtml;
         }
 
@@ -487,7 +866,7 @@
             if (report.recommended_features.length === 0) return;
 
             document.getElementById('recommendationsSection').style.display = 'block';
-            const recHtml = report.recommended_features.map(r => `<li>${r}</li>`).join('');
+            const recHtml = report.recommended_features.map(r => `<li>▶ ${r}</li>`).join('');
             document.getElementById('recommendationsList').innerHTML = recHtml;
         }
 
@@ -496,17 +875,17 @@
 
             if (report.is_fully_compatible) {
                 if (report.has_simd) {
-                    statusBadge.textContent = '✅ Fully Compatible';
+                    statusBadge.textContent = '✓ Fully Compatible';
                     statusBadge.className = 'status-badge success';
                 } else {
-                    statusBadge.textContent = '✅ Compatible (SIMD disabled)';
+                    statusBadge.textContent = '✓ Compatible (SIMD disabled)';
                     statusBadge.className = 'status-badge success';
                 }
             } else if (report.has_wasm) {
-                statusBadge.textContent = '⚠️ Partially Compatible';
+                statusBadge.textContent = '⚠ Partially Compatible';
                 statusBadge.className = 'status-badge warning';
             } else {
-                statusBadge.textContent = '❌ Not Compatible';
+                statusBadge.textContent = '✗ Not Compatible';
                 statusBadge.className = 'status-badge error';
             }
         }
@@ -516,7 +895,7 @@
             const perfResults = document.getElementById('perfResults');
 
             resultsDiv.style.display = 'block';
-            perfResults.innerHTML = '<p>Running performance test...</p>';
+            perfResults.innerHTML = '<p style="color: var(--neon-cyan); text-align: center; padding: 20px;">[ RUNNING PERFORMANCE TEST... ]</p>';
 
             try {
                 // Create a small test database
@@ -538,34 +917,33 @@
 
                 // Display results
                 perfResults.innerHTML = `
-                    <div style="display: grid; gap: 15px;">
-                        <div style="background: #f7fafc; padding: 15px; border-radius: 6px;">
-                            <strong>Insert Performance:</strong>
-                            <div style="margin-top: 5px;">
-                                • 1,000 vectors inserted in ${insertTime.toFixed(2)}ms
-                                <br>• ${(1000 / (insertTime / 1000)).toFixed(0)} vectors/second
-                            </div>
+                    <div class="perf-metric">
+                        <strong>▶ Insert Performance</strong>
+                        <div>
+                            • 1,000 vectors inserted in ${insertTime.toFixed(2)}ms<br>
+                            • ${(1000 / (insertTime / 1000)).toFixed(0)} vectors/second<br>
+                            • Average latency: ${(insertTime / 1000).toFixed(3)}ms per vector
                         </div>
-                        <div style="background: #f7fafc; padding: 15px; border-radius: 6px;">
-                            <strong>Search Performance:</strong>
-                            <div style="margin-top: 5px;">
-                                • Search completed in ${searchTime.toFixed(2)}ms
-                                <br>• ${(1000 / searchTime).toFixed(0)} queries/second
-                                <br>• Found ${results.length} results
-                            </div>
+                    </div>
+                    <div class="perf-metric">
+                        <strong>▶ Search Performance</strong>
+                        <div>
+                            • Search completed in ${searchTime.toFixed(2)}ms<br>
+                            • ${(1000 / searchTime).toFixed(0)} queries/second<br>
+                            • Found ${results.length} results
                         </div>
-                        <div style="background: ${compat.has_simd ? '#c6f6d5' : '#fef3c7'}; padding: 15px; border-radius: 6px;">
-                            <strong>SIMD Status:</strong>
-                            <div style="margin-top: 5px;">
-                                ${compat.has_simd
-                                    ? '✅ SIMD enabled - optimal performance'
-                                    : '⚠️ SIMD not enabled - using scalar fallback (2-4x slower)'}
-                            </div>
+                    </div>
+                    <div class="perf-metric" style="border-left-color: ${compat.has_simd ? 'var(--neon-green)' : 'var(--neon-yellow)'}">
+                        <strong>▶ SIMD Status</strong>
+                        <div style="color: ${compat.has_simd ? 'var(--neon-green)' : 'var(--neon-yellow)'}">
+                            ${compat.has_simd
+                                ? '✓ SIMD enabled - optimal performance achieved'
+                                : '⚠ SIMD not enabled - using scalar fallback (2-4x slower)'}
                         </div>
                     </div>
                 `;
             } catch (e) {
-                perfResults.innerHTML = `<p style="color: #742a2a;">Test failed: ${e}</p>`;
+                perfResults.innerHTML = `<p style="color: var(--neon-magenta); text-align: center; padding: 20px; animation: glitch 0.3s infinite;">✗ Test failed: ${e}</p>`;
             }
         };
 
