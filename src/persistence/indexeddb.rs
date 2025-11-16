@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{IdbDatabase, IdbFactory, IdbOpenDbRequest, IdbRequest, IdbTransactionMode, IdbVersionChangeEvent};
+use web_sys::{IdbDatabase, IdbFactory, IdbOpenDbRequest, IdbTransactionMode, IdbVersionChangeEvent};
 use js_sys::{Uint8Array, Array, Promise};
 
 const DB_NAME: &str = "VecDB";
@@ -22,14 +22,29 @@ impl IndexedDBStore {
     pub async fn open(&mut self) -> Result<(), JsValue> {
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window object"))?;
 
-        let idb_factory: IdbFactory = window
-            .indexed_db()
-            .map_err(|_| JsValue::from_str("IndexedDB not supported"))?
-            .ok_or_else(|| JsValue::from_str("IndexedDB not available"))?;
+        // Check if IndexedDB is supported
+        let idb_factory: IdbFactory = match window.indexed_db() {
+            Ok(Some(factory)) => factory,
+            Ok(None) => {
+                return Err(JsValue::from_str(
+                    "IndexedDB not available in this browser. Please use a modern browser like Chrome, Firefox, or Edge."
+                ));
+            }
+            Err(_) => {
+                return Err(JsValue::from_str(
+                    "IndexedDB not supported in this browser. Persistence features are disabled."
+                ));
+            }
+        };
 
         let open_request: IdbOpenDbRequest = idb_factory
             .open_with_u32(DB_NAME, DB_VERSION)
-            .map_err(|_| JsValue::from_str("Failed to open DB"))?;
+            .map_err(|e| {
+                JsValue::from_str(&format!(
+                    "Failed to open IndexedDB. This may be due to browser privacy settings or incognito mode. Error: {:?}",
+                    e
+                ))
+            })?;
 
         // Set up onupgradeneeded callback
         let onupgradeneeded = Closure::once(move |event: &IdbVersionChangeEvent| {

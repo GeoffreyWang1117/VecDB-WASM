@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VecDB-WASM - Browser Compatibility Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .status-section {
+            margin-bottom: 30px;
+        }
+
+        .status-section h2 {
+            color: #2d3748;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.9em;
+            margin-left: auto;
+        }
+
+        .status-badge.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status-badge.warning {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-badge.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .feature-list {
+            display: grid;
+            gap: 15px;
+        }
+
+        .feature {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border-left: 4px solid #cbd5e0;
+        }
+
+        .feature.supported {
+            border-left-color: #48bb78;
+        }
+
+        .feature.unsupported {
+            border-left-color: #f56565;
+        }
+
+        .feature-name {
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 5px;
+        }
+
+        .feature-desc {
+            color: #718096;
+            font-size: 0.9em;
+        }
+
+        .feature-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-weight: 600;
+        }
+
+        .feature-status.supported {
+            color: #22543d;
+        }
+
+        .feature-status.unsupported {
+            color: #742a2a;
+        }
+
+        .icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+        }
+
+        .icon.check {
+            background: #48bb78;
+            color: white;
+        }
+
+        .icon.cross {
+            background: #f56565;
+            color: white;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .warning-box h3 {
+            color: #856404;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .warning-box ul {
+            color: #856404;
+            margin-left: 30px;
+        }
+
+        .warning-box li {
+            margin: 8px 0;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-box h3 {
+            color: #0d47a1;
+            margin-bottom: 10px;
+        }
+
+        .info-box p {
+            color: #1565c0;
+            line-height: 1.6;
+        }
+
+        .browser-info {
+            background: #f7fafc;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .browser-info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .browser-info-item:last-child {
+            border-bottom: none;
+        }
+
+        .browser-info-label {
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .browser-info-value {
+            color: #718096;
+        }
+
+        .test-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1em;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 20px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .recommendations {
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .recommendations h3 {
+            color: #166534;
+            margin-bottom: 15px;
+        }
+
+        .recommendations ul {
+            color: #166534;
+            margin-left: 20px;
+        }
+
+        .recommendations li {
+            margin: 8px 0;
+            line-height: 1.6;
+        }
+
+        #loadingSpinner {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Browser Compatibility Check</h1>
+            <p>VecDB-WASM Feature Detection & Browser Support</p>
+        </div>
+
+        <div class="content">
+            <div id="loadingSpinner">
+                <div class="spinner"></div>
+                <p>Initializing WASM and checking compatibility...</p>
+            </div>
+
+            <div id="compatReport" style="display: none;">
+                <!-- Browser Information -->
+                <div class="status-section">
+                    <h2>
+                        🌐 Browser Information
+                        <span class="status-badge" id="overallStatus">Checking...</span>
+                    </h2>
+                    <div class="browser-info" id="browserInfo"></div>
+                </div>
+
+                <!-- Feature Support -->
+                <div class="status-section">
+                    <h2>✨ Feature Support</h2>
+                    <div class="feature-list" id="featureList"></div>
+                </div>
+
+                <!-- Warnings -->
+                <div id="warningsSection" style="display: none;">
+                    <div class="warning-box">
+                        <h3>⚠️ Warnings</h3>
+                        <ul id="warningsList"></ul>
+                    </div>
+                </div>
+
+                <!-- Recommendations -->
+                <div id="recommendationsSection" style="display: none;">
+                    <div class="recommendations">
+                        <h3>✅ Recommended Features</h3>
+                        <ul id="recommendationsList"></ul>
+                    </div>
+                </div>
+
+                <!-- Browser Recommendations -->
+                <div class="info-box">
+                    <h3>💡 Browser Recommendations</h3>
+                    <p><strong>Best Performance:</strong> Chrome, Edge, Firefox (latest versions)</p>
+                    <p><strong>Good Performance:</strong> Safari 15+, Opera</p>
+                    <p><strong>Not Recommended:</strong> Internet Explorer (not supported)</p>
+                    <p style="margin-top: 10px;"><em>For optimal performance, enable WASM SIMD in your browser flags if available.</em></p>
+                </div>
+
+                <!-- Test Button -->
+                <button class="test-button" onclick="runQuickTest()">
+                    Run Quick Performance Test
+                </button>
+
+                <div id="testResults" style="display: none; margin-top: 20px;">
+                    <div class="info-box">
+                        <h3>🚀 Performance Test Results</h3>
+                        <div id="perfResults"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { BrowserCompat, VectorDB, IndexType, Metric } from '../pkg/vecdb_wasm.js';
+
+        let compat = null;
+
+        async function checkCompatibility() {
+            try {
+                await init();
+                compat = new BrowserCompat();
+
+                const report = compat.get_report();
+                const warnings = compat.get_warnings();
+
+                // Show report
+                document.getElementById('loadingSpinner').style.display = 'none';
+                document.getElementById('compatReport').style.display = 'block';
+
+                // Update browser info
+                updateBrowserInfo(report);
+
+                // Update features
+                updateFeatureList(report);
+
+                // Show warnings if any
+                if (warnings.length > 0) {
+                    showWarnings(warnings);
+                }
+
+                // Show recommendations
+                if (report.recommended_features.length > 0) {
+                    showRecommendations(report);
+                }
+
+                // Update overall status
+                updateOverallStatus(report);
+
+            } catch (e) {
+                document.getElementById('loadingSpinner').innerHTML = `
+                    <div style="color: #742a2a;">
+                        <h2>❌ Initialization Failed</h2>
+                        <p>Error: ${e}</p>
+                        <p>Your browser may not support WebAssembly. Please use a modern browser.</p>
+                    </div>
+                `;
+            }
+        }
+
+        function updateBrowserInfo(report) {
+            const infoHtml = `
+                <div class="browser-info-item">
+                    <span class="browser-info-label">Browser:</span>
+                    <span class="browser-info-value">${report.browser_name}</span>
+                </div>
+                <div class="browser-info-item">
+                    <span class="browser-info-label">WebAssembly:</span>
+                    <span class="browser-info-value">${report.has_wasm ? '✅ Supported' : '❌ Not Supported'}</span>
+                </div>
+                <div class="browser-info-item">
+                    <span class="browser-info-label">IndexedDB:</span>
+                    <span class="browser-info-value">${report.has_indexeddb ? '✅ Supported' : '❌ Not Supported'}</span>
+                </div>
+                <div class="browser-info-item">
+                    <span class="browser-info-label">WASM SIMD:</span>
+                    <span class="browser-info-value">${report.has_simd ? '✅ Enabled (2-4x faster)' : '⚠️ Not Enabled (using scalar fallback)'}</span>
+                </div>
+                <div class="browser-info-item">
+                    <span class="browser-info-label">BigInt64Array:</span>
+                    <span class="browser-info-value">${report.has_bigint64array ? '✅ Supported' : '❌ Not Supported'}</span>
+                </div>
+            `;
+            document.getElementById('browserInfo').innerHTML = infoHtml;
+        }
+
+        function updateFeatureList(report) {
+            const features = [
+                {
+                    name: 'WebAssembly',
+                    desc: 'Required for running VecDB-WASM',
+                    supported: report.has_wasm,
+                    critical: true
+                },
+                {
+                    name: 'IndexedDB Persistence',
+                    desc: 'Save and load databases in the browser',
+                    supported: report.has_indexeddb,
+                    critical: false
+                },
+                {
+                    name: 'WASM SIMD',
+                    desc: '2-4x faster distance calculations',
+                    supported: report.has_simd,
+                    critical: false
+                },
+                {
+                    name: 'BigInt64Array',
+                    desc: 'Support for large integer arrays',
+                    supported: report.has_bigint64array,
+                    critical: false
+                }
+            ];
+
+            const featuresHtml = features.map(feature => `
+                <div class="feature ${feature.supported ? 'supported' : 'unsupported'}">
+                    <div>
+                        <div class="feature-name">${feature.name}${feature.critical ? ' (Required)' : ''}</div>
+                        <div class="feature-desc">${feature.desc}</div>
+                    </div>
+                    <div class="feature-status ${feature.supported ? 'supported' : 'unsupported'}">
+                        <span class="icon ${feature.supported ? 'check' : 'cross'}">
+                            ${feature.supported ? '✓' : '✗'}
+                        </span>
+                        ${feature.supported ? 'Supported' : 'Not Supported'}
+                    </div>
+                </div>
+            `).join('');
+
+            document.getElementById('featureList').innerHTML = featuresHtml;
+        }
+
+        function showWarnings(warnings) {
+            if (warnings.length === 0) return;
+
+            document.getElementById('warningsSection').style.display = 'block';
+            const warningsHtml = warnings.map(w => `<li>${w}</li>`).join('');
+            document.getElementById('warningsList').innerHTML = warningsHtml;
+        }
+
+        function showRecommendations(report) {
+            if (report.recommended_features.length === 0) return;
+
+            document.getElementById('recommendationsSection').style.display = 'block';
+            const recHtml = report.recommended_features.map(r => `<li>${r}</li>`).join('');
+            document.getElementById('recommendationsList').innerHTML = recHtml;
+        }
+
+        function updateOverallStatus(report) {
+            const statusBadge = document.getElementById('overallStatus');
+
+            if (report.is_fully_compatible) {
+                if (report.has_simd) {
+                    statusBadge.textContent = '✅ Fully Compatible';
+                    statusBadge.className = 'status-badge success';
+                } else {
+                    statusBadge.textContent = '✅ Compatible (SIMD disabled)';
+                    statusBadge.className = 'status-badge success';
+                }
+            } else if (report.has_wasm) {
+                statusBadge.textContent = '⚠️ Partially Compatible';
+                statusBadge.className = 'status-badge warning';
+            } else {
+                statusBadge.textContent = '❌ Not Compatible';
+                statusBadge.className = 'status-badge error';
+            }
+        }
+
+        window.runQuickTest = async function() {
+            const resultsDiv = document.getElementById('testResults');
+            const perfResults = document.getElementById('perfResults');
+
+            resultsDiv.style.display = 'block';
+            perfResults.innerHTML = '<p>Running performance test...</p>';
+
+            try {
+                // Create a small test database
+                const db = new VectorDB(128, Metric.Cosine, IndexType.HNSW);
+
+                // Test insert performance
+                const insertStart = performance.now();
+                for (let i = 0; i < 1000; i++) {
+                    const vector = Array.from({ length: 128 }, () => Math.random());
+                    db.insert(i, vector, null);
+                }
+                const insertTime = performance.now() - insertStart;
+
+                // Test search performance
+                const query = Array.from({ length: 128 }, () => Math.random());
+                const searchStart = performance.now();
+                const results = db.search(query, 10, false);
+                const searchTime = performance.now() - searchStart;
+
+                // Display results
+                perfResults.innerHTML = `
+                    <div style="display: grid; gap: 15px;">
+                        <div style="background: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <strong>Insert Performance:</strong>
+                            <div style="margin-top: 5px;">
+                                • 1,000 vectors inserted in ${insertTime.toFixed(2)}ms
+                                <br>• ${(1000 / (insertTime / 1000)).toFixed(0)} vectors/second
+                            </div>
+                        </div>
+                        <div style="background: #f7fafc; padding: 15px; border-radius: 6px;">
+                            <strong>Search Performance:</strong>
+                            <div style="margin-top: 5px;">
+                                • Search completed in ${searchTime.toFixed(2)}ms
+                                <br>• ${(1000 / searchTime).toFixed(0)} queries/second
+                                <br>• Found ${results.length} results
+                            </div>
+                        </div>
+                        <div style="background: ${compat.has_simd ? '#c6f6d5' : '#fef3c7'}; padding: 15px; border-radius: 6px;">
+                            <strong>SIMD Status:</strong>
+                            <div style="margin-top: 5px;">
+                                ${compat.has_simd
+                                    ? '✅ SIMD enabled - optimal performance'
+                                    : '⚠️ SIMD not enabled - using scalar fallback (2-4x slower)'}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                perfResults.innerHTML = `<p style="color: #742a2a;">Test failed: ${e}</p>`;
+            }
+        };
+
+        // Run compatibility check on load
+        checkCompatibility();
+    </script>
+</body>
+</html>

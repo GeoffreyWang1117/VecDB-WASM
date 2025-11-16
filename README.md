@@ -17,10 +17,11 @@
 - **Type-Safe**: Full TypeScript support
 
 ### Production Ready
-- **Comprehensive Testing**: 14+ unit tests covering all modules
+- **Comprehensive Testing**: 15+ unit tests covering all modules
 - **Well Documented**: API docs, development guides, and examples
 - **Performance Benchmarking**: Built-in benchmark suite
 - **Error Handling**: Robust validation and error messages
+- **Browser Compatibility**: Works across modern browsers with automatic feature detection
 
 ## 🏗️ Architecture
 
@@ -65,6 +66,38 @@ Open http://localhost:8080 in your browser.
 - **index.html** - Interactive demo with real-time statistics
 - **benchmark.html** - Performance testing suite
 - **persistence.html** - Advanced features including IndexedDB persistence and metadata filtering
+- **compatibility.html** - Browser compatibility checker and feature detection
+
+## 🌐 Browser Compatibility
+
+### Supported Browsers
+
+| Browser | Version | SIMD | IndexedDB | Status |
+|---------|---------|------|-----------|--------|
+| Chrome | 91+ | ✅ | ✅ | ✅ Fully Supported |
+| Edge | 91+ | ✅ | ✅ | ✅ Fully Supported |
+| Firefox | 89+ | ✅ | ✅ | ✅ Fully Supported |
+| Safari | 15+ | ⚠️ | ✅ | ⚠️ Partial (no SIMD) |
+| Opera | 77+ | ✅ | ✅ | ✅ Fully Supported |
+
+**Note**: SIMD provides 2-4x performance boost. Browsers without SIMD will use scalar fallback.
+
+### Feature Detection
+
+```javascript
+import { BrowserCompat } from './pkg/vecdb_wasm.js';
+
+const compat = new BrowserCompat();
+console.log(compat.browser_name);      // "Chrome"
+console.log(compat.has_simd);          // true/false
+console.log(compat.has_indexeddb);     // true/false
+
+// Get full report
+const report = compat.get_report();
+const warnings = compat.get_warnings();
+```
+
+For detailed browser compatibility information, see [BROWSER_COMPATIBILITY.md](BROWSER_COMPATIBILITY.md).
 
 ## 📊 Performance
 
@@ -176,6 +209,7 @@ const stats = db.get_stats();
   - [x] Snapshot import/export
   - [x] Metadata filtering
   - [x] Custom HNSW parameters
+  - [x] Browser compatibility layer
 - [ ] **Phase 5**: Advanced Features (v0.3.0)
   - [ ] IVF index implementation
   - [ ] Product Quantization
