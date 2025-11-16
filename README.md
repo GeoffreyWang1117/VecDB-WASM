@@ -1,14 +1,26 @@
 # VecDB-WASM 🚀
 
-A production-grade vector database for browsers, powered by WebAssembly and Rust.
+**v0.2.0** - A production-grade vector database for browsers, powered by WebAssembly and Rust.
 
 ## 🎯 Features
 
-- **High Performance**: Near-native performance using WASM and SIMD optimizations
-- **Multiple Index Types**: HNSW, IVF, and Flat indices
-- **Browser-Native**: Runs entirely in the browser with IndexedDB persistence
+### Core Capabilities
+- **High Performance**: Near-native performance using WASM and SIMD optimizations (2-4x speedup)
+- **Multiple Index Types**: HNSW (fast approximate) and Flat (exact) indices
+- **Advanced Search**: Metadata filtering, customizable parameters, batch operations
+- **SIMD Acceleration**: Optimized distance calculations using WebAssembly SIMD128
+
+### Persistence & Data Management
+- **IndexedDB Integration**: Save and load databases directly in the browser
+- **Import/Export**: JSON and binary snapshot formats
+- **Metadata Support**: Rich metadata with filtering capabilities
 - **Type-Safe**: Full TypeScript support
-- **Production Ready**: Comprehensive testing and benchmarking
+
+### Production Ready
+- **Comprehensive Testing**: 14+ unit tests covering all modules
+- **Well Documented**: API docs, development guides, and examples
+- **Performance Benchmarking**: Built-in benchmark suite
+- **Error Handling**: Robust validation and error messages
 
 ## 🏗️ Architecture
 
@@ -48,6 +60,12 @@ python3 -m http.server 8080
 
 Open http://localhost:8080 in your browser.
 
+### Examples
+
+- **index.html** - Interactive demo with real-time statistics
+- **benchmark.html** - Performance testing suite
+- **persistence.html** - Advanced features including IndexedDB persistence and metadata filtering
+
 ## 📊 Performance
 
 Performance benchmarks comparing VecDB-WASM with native implementations:
@@ -71,33 +89,98 @@ wasm-pack test --headless --firefox
 ### Create Database
 
 ```javascript
-import init, { VectorDB } from './pkg/vecdb_wasm.js';
+import init, { VectorDB, IndexType, Metric } from './pkg/vecdb_wasm.js';
 
 await init();
-const db = VectorDB.new(128, 'cosine');
+
+// Basic creation
+const db = new VectorDB(128, Metric.Cosine, IndexType.HNSW);
+
+// Custom HNSW parameters
+const customDB = VectorDB.new_with_hnsw_params(128, Metric.Cosine, 16, 200);
 ```
 
 ### Insert Vectors
 
 ```javascript
+// Single insert
 const vector = new Float32Array(128);
-db.insert(1, vector, { name: "example" });
+const metadata = JSON.stringify({ name: "example", category: "A" });
+db.insert(1, Array.from(vector), metadata);
+
+// Batch insert
+const vectors = [{
+    id: 1,
+    vector: Array.from(new Float32Array(128)),
+    metadata: { category: "A" }
+}, ...];
+const count = db.batch_insert(vectors);
 ```
 
 ### Search
 
 ```javascript
-const results = db.search(queryVector, 10);
-// Returns: [{id: 1, score: 0.95, metadata: {...}}, ...]
+// Normal search
+const results = db.search(queryVector, 10, true);
+
+// Filtered search
+const filter = JSON.stringify({ category: "A" });
+const filtered = db.search_with_filter(queryVector, 10, filter, true);
+// Returns: [{id: 1, score: 0.95, metadata: "{...}"}, ...]
+```
+
+### Persistence
+
+```javascript
+// Save to IndexedDB
+await db.save_to_indexeddb("myDatabase");
+
+// Load from IndexedDB
+const data = await VectorDB.load_from_indexeddb("myDatabase");
+const restoredDB = VectorDB.import_snapshot(data);
+
+// Export/Import snapshots
+const jsonSnapshot = db.export_snapshot_json();
+const binarySnapshot = db.export_snapshot();
+
+const db2 = VectorDB.import_snapshot_json(jsonSnapshot);
+const db3 = VectorDB.import_snapshot(binarySnapshot);
+
+// List saved databases
+const savedDBs = await VectorDB.list_saved_databases();
+```
+
+### Statistics
+
+```javascript
+const stats = db.get_stats();
+// Returns: {
+//   version: "0.2.0",
+//   dimension: 128,
+//   vector_count: 1000,
+//   metric: "Cosine",
+//   index_type: "HNSW",
+//   hnsw_m: 16,
+//   hnsw_ef: 200,
+//   estimated_size_bytes: 524288
+// }
 ```
 
 ## 🗺️ Roadmap
 
-- [x] Phase 1: Core infrastructure
-- [x] Phase 2: HNSW index
-- [ ] Phase 3: SIMD optimizations
-- [ ] Phase 4: Persistence layer
-- [ ] Phase 5: Web UI & benchmarks
+- [x] **Phase 1**: Core infrastructure (v0.1.0)
+- [x] **Phase 2**: HNSW index (v0.1.0)
+- [x] **Phase 3**: SIMD optimizations (v0.1.0)
+- [x] **Phase 4**: Persistence layer (v0.2.0)
+  - [x] IndexedDB integration
+  - [x] Snapshot import/export
+  - [x] Metadata filtering
+  - [x] Custom HNSW parameters
+- [ ] **Phase 5**: Advanced Features (v0.3.0)
+  - [ ] IVF index implementation
+  - [ ] Product Quantization
+  - [ ] Web Workers parallelism
+  - [ ] React-based full UI
 
 ## 📄 License
 

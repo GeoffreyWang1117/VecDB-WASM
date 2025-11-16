@@ -2,11 +2,13 @@ pub mod distance;
 pub mod index;
 pub mod storage;
 pub mod bindings;
+pub mod persistence;
 
 pub use distance::{DistanceMetric, cosine_similarity, euclidean_distance};
 pub use index::{Index, FlatIndex, SearchResult};
 pub use storage::{Vector, VectorMetadata};
 pub use bindings::VectorDB;
+pub use persistence::{DatabaseSnapshot, IndexParams};
 
 // WASM initialization
 use wasm_bindgen::prelude::*;

@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VecDB-WASM - Persistence & Advanced Features</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #f5f7fa;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: #2d3748;
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            color: #718096;
+            margin-bottom: 30px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 25px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h2 {
+            color: #667eea;
+            margin-bottom: 20px;
+            font-size: 1.3em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: transform 0.2s, box-shadow 0.2s;
+            flex: 1;
+            min-width: 120px;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        button.secondary {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+        }
+
+        button.success {
+            background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);
+        }
+
+        button.danger {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        label {
+            display: block;
+            color: #4a5568;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+
+        .status {
+            padding: 12px;
+            background: #edf2f7;
+            border-radius: 6px;
+            margin-top: 15px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+        }
+
+        .results {
+            margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            background: #f7fafc;
+            padding: 12px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item strong {
+            color: #2d3748;
+        }
+
+        .result-item .score {
+            float: right;
+            background: #667eea;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .metadata {
+            margin-top: 8px;
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
+        .db-list {
+            list-style: none;
+            margin-top: 15px;
+        }
+
+        .db-list li {
+            background: #f7fafc;
+            padding: 12px;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .db-list button {
+            min-width: auto;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 VecDB-WASM v0.2.0</h1>
+        <p class="subtitle">Persistence & Advanced Features Demo</p>
+
+        <div class="grid">
+            <!-- Database Stats -->
+            <div class="card">
+                <h2>📊 Database Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-vectors">0</div>
+                        <div class="stat-label">Vectors</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-dimension">-</div>
+                        <div class="stat-label">Dimension</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="stat-size">-</div>
+                        <div class="stat-label">Size (KB)</div>
+                    </div>
+                </div>
+                <button onclick="refreshStats()" style="margin-top: 15px;">Refresh Stats</button>
+            </div>
+
+            <!-- Data Management -->
+            <div class="card">
+                <h2>💾 Data Management</h2>
+                <label>Number of Vectors</label>
+                <input type="number" id="numVectors" value="100" min="1">
+
+                <div class="btn-group">
+                    <button onclick="generateData()">Generate Data</button>
+                    <button onclick="clearData()" class="danger">Clear All</button>
+                </div>
+
+                <div class="status" id="dataStatus"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Persistence -->
+            <div class="card">
+                <h2>💿 Persistence (IndexedDB)</h2>
+                <label>Database Name</label>
+                <input type="text" id="dbName" value="myVectorDB" placeholder="Enter database name">
+
+                <div class="btn-group">
+                    <button onclick="saveDatabase()" class="success">Save to IndexedDB</button>
+                    <button onclick="loadDatabase()" class="secondary">Load from IndexedDB</button>
+                </div>
+
+                <div class="btn-group">
+                    <button onclick="listDatabases()">List Saved DBs</button>
+                    <button onclick="deleteDatabase()" class="danger">Delete DB</button>
+                </div>
+
+                <div class="status" id="persistenceStatus"></div>
+
+                <ul class="db-list" id="dbList"></ul>
+            </div>
+
+            <!-- Export/Import -->
+            <div class="card">
+                <h2>📦 Export/Import</h2>
+
+                <div class="btn-group">
+                    <button onclick="exportJSON()">Export JSON</button>
+                    <button onclick="exportBinary()">Export Binary</button>
+                </div>
+
+                <label>Import Data</label>
+                <input type="file" id="importFile" accept=".json,.bin">
+                <button onclick="importData()">Import</button>
+
+                <div class="status" id="exportStatus"></div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Advanced Search -->
+            <div class="card">
+                <h2>🔍 Advanced Search</h2>
+
+                <label>Search Type</label>
+                <select id="searchType">
+                    <option value="normal">Normal Search</option>
+                    <option value="filtered">Filtered Search</option>
+                </select>
+
+                <div id="filterInputs" style="display: none;">
+                    <label>Filter (JSON)</label>
+                    <textarea id="filterJSON" rows="3" placeholder='{"category": "A", "tag": "important"}'></textarea>
+                </div>
+
+                <label>Top K Results</label>
+                <input type="number" id="topK" value="5" min="1">
+
+                <button onclick="performSearch()">Search</button>
+
+                <div class="results" id="searchResults"></div>
+            </div>
+
+            <!-- Custom HNSW Parameters -->
+            <div class="card">
+                <h2>⚙️ Create New Database</h2>
+
+                <label>Dimension</label>
+                <input type="number" id="newDimension" value="128" min="1">
+
+                <label>Distance Metric</label>
+                <select id="newMetric">
+                    <option value="Cosine">Cosine</option>
+                    <option value="Euclidean">Euclidean</option>
+                    <option value="DotProduct">Dot Product</option>
+                </select>
+
+                <label>Index Type</label>
+                <select id="newIndexType">
+                    <option value="HNSW">HNSW</option>
+                    <option value="Flat">Flat</option>
+                </select>
+
+                <div id="hnswParams">
+                    <label>HNSW M (max connections)</label>
+                    <input type="number" id="hnswM" value="16" min="2">
+
+                    <label>HNSW EF Construction</label>
+                    <input type="number" id="hnswEF" value="200" min="10">
+                </div>
+
+                <button onclick="createNewDB()">Create Database</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { VectorDB, IndexType, Metric } from '../pkg/vecdb_wasm.js';
+
+        let db = null;
+
+        window.createNewDB = async function() {
+            const dimension = parseInt(document.getElementById('newDimension').value);
+            const metric = Metric[document.getElementById('newMetric').value];
+            const indexType = IndexType[document.getElementById('newIndexType').value];
+
+            if (indexType === IndexType.HNSW) {
+                const m = parseInt(document.getElementById('hnswM').value);
+                const ef = parseInt(document.getElementById('hnswEF').value);
+                db = VectorDB.new_with_hnsw_params(dimension, metric, m, ef);
+            } else {
+                db = new VectorDB(dimension, metric, indexType);
+            }
+
+            alert(`Database created: ${dimension}D ${document.getElementById('newMetric').value} ${document.getElementById('newIndexType').value}`);
+            refreshStats();
+        };
+
+        window.generateData = async function() {
+            if (!db) {
+                alert('Please create a database first!');
+                return;
+            }
+
+            const num = parseInt(document.getElementById('numVectors').value);
+            const dimension = db.dimension();
+            const status = document.getElementById('dataStatus');
+
+            status.textContent = `Generating ${num} vectors...`;
+            status.className = 'status';
+
+            const categories = ['A', 'B', 'C'];
+            const tags = ['important', 'normal', 'low'];
+
+            for (let i = 0; i < num; i++) {
+                const vector = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+                const metadata = JSON.stringify({
+                    category: categories[i % categories.length],
+                    tag: tags[i % tags.length],
+                    index: i
+                });
+                db.insert(i, vector, metadata);
+            }
+
+            status.textContent = `Generated ${num} vectors successfully!`;
+            status.className = 'status success';
+            refreshStats();
+        };
+
+        window.clearData = function() {
+            if (db && confirm('Clear all data?')) {
+                db.clear();
+                document.getElementById('dataStatus').textContent = 'Data cleared';
+                refreshStats();
+            }
+        };
+
+        window.saveDatabase = async function() {
+            if (!db) {
+                alert('No database to save!');
+                return;
+            }
+
+            const name = document.getElementById('dbName').value;
+            const status = document.getElementById('persistenceStatus');
+
+            status.textContent = 'Saving to IndexedDB...';
+            status.className = 'status';
+
+            try {
+                await db.save_to_indexeddb(name);
+                status.textContent = `Saved to IndexedDB as "${name}"`;
+                status.className = 'status success';
+                listDatabases();
+            } catch (e) {
+                status.textContent = `Error: ${e}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.loadDatabase = async function() {
+            const name = document.getElementById('dbName').value;
+            const status = document.getElementById('persistenceStatus');
+
+            status.textContent = 'Loading from IndexedDB...';
+            status.className = 'status';
+
+            try {
+                const data = await VectorDB.load_from_indexeddb(name);
+                db = VectorDB.import_snapshot(data);
+                status.textContent = `Loaded from IndexedDB: "${name}"`;
+                status.className = 'status success';
+                refreshStats();
+            } catch (e) {
+                status.textContent = `Error: ${e}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.deleteDatabase = async function() {
+            const name = document.getElementById('dbName').value;
+            if (!confirm(`Delete "${name}"?`)) return;
+
+            try {
+                await VectorDB.delete_from_indexeddb(name);
+                document.getElementById('persistenceStatus').textContent = 'Deleted successfully';
+                listDatabases();
+            } catch (e) {
+                alert(`Error: ${e}`);
+            }
+        };
+
+        window.listDatabases = async function() {
+            try {
+                const keys = await VectorDB.list_saved_databases();
+                const list = document.getElementById('dbList');
+                list.innerHTML = '';
+
+                keys.forEach(key => {
+                    const li = document.createElement('li');
+                    li.innerHTML = `
+                        <span>${key}</span>
+                        <div>
+                            <button onclick="loadSpecific('${key}')" class="success">Load</button>
+                            <button onclick="deleteSpecific('${key}')" class="danger">Delete</button>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+            } catch (e) {
+                console.error('Error listing databases:', e);
+            }
+        };
+
+        window.loadSpecific = async function(name) {
+            document.getElementById('dbName').value = name;
+            loadDatabase();
+        };
+
+        window.deleteSpecific = async function(name) {
+            if (confirm(`Delete "${name}"?`)) {
+                await VectorDB.delete_from_indexeddb(name);
+                listDatabases();
+            }
+        };
+
+        window.exportJSON = function() {
+            if (!db) {
+                alert('No database to export!');
+                return;
+            }
+
+            try {
+                const json = db.export_snapshot_json();
+                const blob = new Blob([json], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vecdb_export.json';
+                a.click();
+
+                document.getElementById('exportStatus').textContent = 'Exported as JSON';
+                document.getElementById('exportStatus').className = 'status success';
+            } catch (e) {
+                alert(`Error: ${e}`);
+            }
+        };
+
+        window.exportBinary = function() {
+            if (!db) {
+                alert('No database to export!');
+                return;
+            }
+
+            try {
+                const binary = db.export_snapshot();
+                const blob = new Blob([binary], { type: 'application/octet-stream' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'vecdb_export.bin';
+                a.click();
+
+                document.getElementById('exportStatus').textContent = 'Exported as binary';
+                document.getElementById('exportStatus').className = 'status success';
+            } catch (e) {
+                alert(`Error: ${e}`);
+            }
+        };
+
+        window.importData = async function() {
+            const file = document.getElementById('importFile').files[0];
+            if (!file) {
+                alert('Please select a file!');
+                return;
+            }
+
+            const status = document.getElementById('exportStatus');
+            status.textContent = 'Importing...';
+            status.className = 'status';
+
+            try {
+                if (file.name.endsWith('.json')) {
+                    const text = await file.text();
+                    db = VectorDB.import_snapshot_json(text);
+                } else {
+                    const buffer = await file.arrayBuffer();
+                    const uint8 = new Uint8Array(buffer);
+                    db = VectorDB.import_snapshot(uint8);
+                }
+
+                status.textContent = 'Import successful!';
+                status.className = 'status success';
+                refreshStats();
+            } catch (e) {
+                status.textContent = `Error: ${e}`;
+                status.className = 'status error';
+            }
+        };
+
+        window.performSearch = function() {
+            if (!db || db.len() === 0) {
+                alert('No data to search!');
+                return;
+            }
+
+            const k = parseInt(document.getElementById('topK').value);
+            const dimension = db.dimension();
+            const query = Array.from({ length: dimension }, () => Math.random() * 2 - 1);
+
+            const searchType = document.getElementById('searchType').value;
+            let results;
+
+            if (searchType === 'filtered') {
+                const filterText = document.getElementById('filterJSON').value;
+                results = db.search_with_filter(query, k, filterText || null, true);
+            } else {
+                results = db.search(query, k, true);
+            }
+
+            const resultsDiv = document.getElementById('searchResults');
+            resultsDiv.innerHTML = '<h3>Results:</h3>';
+
+            results.forEach((result, idx) => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `
+                    <strong>ID: ${result.id}</strong>
+                    <span class="score">${result.score.toFixed(4)}</span>
+                    ${result.metadata ? `<div class="metadata">${result.metadata}</div>` : ''}
+                `;
+                resultsDiv.appendChild(div);
+            });
+        };
+
+        window.refreshStats = function() {
+            if (!db) return;
+
+            try {
+                const stats = db.get_stats();
+                document.getElementById('stat-vectors').textContent = stats.vector_count;
+                document.getElementById('stat-dimension').textContent = stats.dimension;
+                document.getElementById('stat-size').textContent = (stats.estimated_size_bytes / 1024).toFixed(1);
+            } catch (e) {
+                console.error('Error getting stats:', e);
+            }
+        };
+
+        // Show/hide filter inputs
+        document.getElementById('searchType').addEventListener('change', (e) => {
+            document.getElementById('filterInputs').style.display =
+                e.target.value === 'filtered' ? 'block' : 'none';
+        });
+
+        // Show/hide HNSW params
+        document.getElementById('newIndexType').addEventListener('change', (e) => {
+            document.getElementById('hnswParams').style.display =
+                e.target.value === 'HNSW' ? 'block' : 'none';
+        });
+
+        // Initialize
+        async function main() {
+            await init();
+            createNewDB();
+            listDatabases();
+        }
+
+        main();
+    </script>
+</body>
+</html>

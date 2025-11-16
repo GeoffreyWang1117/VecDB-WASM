@@ -1,10 +1,13 @@
 use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
 use crate::distance::DistanceMetric;
 use crate::index::Index;
 use crate::index::{FlatIndex, HNSWIndex};
 use crate::storage::{VectorMetadata, VectorStorage};
+use crate::persistence::{DatabaseSnapshot, IndexParams, IndexedDBStore};
 use std::collections::HashMap;
 use serde::{Deserialize, Serialize};
+use js_sys::Promise;
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]
@@ -64,6 +67,10 @@ pub struct VectorDB {
     storage: VectorStorage,
     index: Box<dyn Index>,
     dimension: usize,
+    metric: DistanceMetric,
+    index_type: IndexType,
+    hnsw_m: usize,
+    hnsw_ef: usize,
 }
 
 #[wasm_bindgen]
@@ -77,16 +84,45 @@ impl VectorDB {
     #[wasm_bindgen(constructor)]
     pub fn new(dimension: usize, metric: Metric, index_type: IndexType) -> Result<VectorDB, JsValue> {
         let metric_internal: DistanceMetric = metric.into();
+        let m = 16;
+        let ef = 200;
 
         let index: Box<dyn Index> = match index_type {
             IndexType::Flat => Box::new(FlatIndex::new(dimension, metric_internal)),
-            IndexType::HNSW => Box::new(HNSWIndex::new(dimension, metric_internal, 16, 200)),
+            IndexType::HNSW => Box::new(HNSWIndex::new(dimension, metric_internal, m, ef)),
         };
 
         Ok(VectorDB {
             storage: VectorStorage::new(dimension),
             index,
             dimension,
+            metric: metric_internal,
+            index_type,
+            hnsw_m: m,
+            hnsw_ef: ef,
+        })
+    }
+
+    /// Create a new VectorDB with custom HNSW parameters
+    #[wasm_bindgen]
+    pub fn new_with_hnsw_params(
+        dimension: usize,
+        metric: Metric,
+        m: usize,
+        ef_construction: usize,
+    ) -> Result<VectorDB, JsValue> {
+        let metric_internal: DistanceMetric = metric.into();
+
+        let index = Box::new(HNSWIndex::new(dimension, metric_internal, m, ef_construction));
+
+        Ok(VectorDB {
+            storage: VectorStorage::new(dimension),
+            index,
+            dimension,
+            metric: metric_internal,
+            index_type: IndexType::HNSW,
+            hnsw_m: m,
+            hnsw_ef: ef_construction,
         })
     }
 
@@ -235,6 +271,348 @@ impl VectorDB {
         }
 
         Ok(count)
+    }
+
+    /// Search with metadata filter
+    /// Filter is a JSON object where all key-value pairs must match
+    #[wasm_bindgen]
+    pub fn search_with_filter(
+        &self,
+        query: Vec<f32>,
+        k: usize,
+        filter: Option<String>,
+        include_metadata: bool,
+    ) -> Result<JsValue, JsValue> {
+        if query.len() != self.dimension {
+            return Err(JsValue::from_str(&format!(
+                "Query dimension mismatch: expected {}, got {}",
+                self.dimension,
+                query.len()
+            )));
+        }
+
+        // Parse filter if provided
+        let filter_map: Option<HashMap<String, String>> = if let Some(f) = filter {
+            Some(
+                serde_json::from_str(&f)
+                    .map_err(|e| JsValue::from_str(&format!("Invalid filter JSON: {}", e)))?,
+            )
+        } else {
+            None
+        };
+
+        // Get more results than needed to account for filtering
+        let search_k = if filter_map.is_some() { k * 3 } else { k };
+        let results = self.index.search(&query, search_k);
+
+        // Filter results based on metadata
+        let filtered_results: Vec<SearchResult> = results
+            .into_iter()
+            .filter(|r| {
+                if let Some(ref filter) = filter_map {
+                    if let Some(metadata) = self.storage.get_metadata(r.id) {
+                        // Check if all filter criteria match
+                        filter.iter().all(|(key, value)| {
+                            metadata.data.get(key).map(|v| v == value).unwrap_or(false)
+                        })
+                    } else {
+                        false
+                    }
+                } else {
+                    true
+                }
+            })
+            .take(k)
+            .map(|r| {
+                let metadata = if include_metadata {
+                    self.storage
+                        .get_metadata(r.id)
+                        .and_then(|m| serde_json::to_string(&m.data).ok())
+                } else {
+                    None
+                };
+
+                SearchResult {
+                    id: r.id,
+                    score: r.score,
+                    metadata,
+                }
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&filtered_results)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Export database snapshot as binary
+    #[wasm_bindgen]
+    pub fn export_snapshot(&self) -> Result<Vec<u8>, JsValue> {
+        let metric_str = match self.metric {
+            DistanceMetric::Cosine => "Cosine",
+            DistanceMetric::Euclidean => "Euclidean",
+            DistanceMetric::DotProduct => "DotProduct",
+        };
+
+        let index_type_str = match self.index_type {
+            IndexType::Flat => "Flat",
+            IndexType::HNSW => "HNSW",
+        };
+
+        let index_params = IndexParams {
+            hnsw_m: Some(self.hnsw_m),
+            hnsw_ef_construction: Some(self.hnsw_ef),
+        };
+
+        let mut snapshot = DatabaseSnapshot::new(
+            self.dimension,
+            metric_str.to_string(),
+            index_type_str.to_string(),
+            index_params,
+        );
+
+        // Add all vectors and metadata
+        for (id, vector) in self.storage.iter() {
+            let metadata = self
+                .storage
+                .get_metadata(id)
+                .map(|m| m.data.clone())
+                .unwrap_or_default();
+            snapshot.add_vector(id, vector.clone(), metadata);
+        }
+
+        snapshot
+            .to_binary()
+            .map_err(|e| JsValue::from_str(&e))
+    }
+
+    /// Export database snapshot as JSON
+    #[wasm_bindgen]
+    pub fn export_snapshot_json(&self) -> Result<String, JsValue> {
+        let metric_str = match self.metric {
+            DistanceMetric::Cosine => "Cosine",
+            DistanceMetric::Euclidean => "Euclidean",
+            DistanceMetric::DotProduct => "DotProduct",
+        };
+
+        let index_type_str = match self.index_type {
+            IndexType::Flat => "Flat",
+            IndexType::HNSW => "HNSW",
+        };
+
+        let index_params = IndexParams {
+            hnsw_m: Some(self.hnsw_m),
+            hnsw_ef_construction: Some(self.hnsw_ef),
+        };
+
+        let mut snapshot = DatabaseSnapshot::new(
+            self.dimension,
+            metric_str.to_string(),
+            index_type_str.to_string(),
+            index_params,
+        );
+
+        for (id, vector) in self.storage.iter() {
+            let metadata = self
+                .storage
+                .get_metadata(id)
+                .map(|m| m.data.clone())
+                .unwrap_or_default();
+            snapshot.add_vector(id, vector.clone(), metadata);
+        }
+
+        snapshot.to_json().map_err(|e| JsValue::from_str(&e))
+    }
+
+    /// Import database from snapshot binary
+    #[wasm_bindgen]
+    pub fn import_snapshot(data: &[u8]) -> Result<VectorDB, JsValue> {
+        let snapshot = DatabaseSnapshot::from_binary(data).map_err(|e| JsValue::from_str(&e))?;
+
+        let metric = match snapshot.metric.as_str() {
+            "Cosine" => Metric::Cosine,
+            "Euclidean" => Metric::Euclidean,
+            "DotProduct" => Metric::DotProduct,
+            _ => return Err(JsValue::from_str("Unknown metric")),
+        };
+
+        let index_type = match snapshot.index_type.as_str() {
+            "Flat" => IndexType::Flat,
+            "HNSW" => IndexType::HNSW,
+            _ => return Err(JsValue::from_str("Unknown index type")),
+        };
+
+        let m = snapshot.index_params.hnsw_m.unwrap_or(16);
+        let ef = snapshot.index_params.hnsw_ef_construction.unwrap_or(200);
+
+        let mut db = if index_type == IndexType::HNSW {
+            VectorDB::new_with_hnsw_params(snapshot.dimension, metric, m, ef)?
+        } else {
+            VectorDB::new(snapshot.dimension, metric, index_type)?
+        };
+
+        // Restore all vectors
+        for entry in snapshot.vectors {
+            let metadata = snapshot.metadata.get(&entry.id).cloned().unwrap_or_default();
+            let meta = VectorMetadata::with_data(entry.id, metadata);
+
+            db.storage
+                .insert(entry.id, entry.vector.clone(), meta)
+                .map_err(|e| JsValue::from_str(&e))?;
+            db.index.insert(entry.id, &entry.vector);
+        }
+
+        Ok(db)
+    }
+
+    /// Import database from JSON snapshot
+    #[wasm_bindgen]
+    pub fn import_snapshot_json(json: &str) -> Result<VectorDB, JsValue> {
+        let snapshot = DatabaseSnapshot::from_json(json).map_err(|e| JsValue::from_str(&e))?;
+
+        let metric = match snapshot.metric.as_str() {
+            "Cosine" => Metric::Cosine,
+            "Euclidean" => Metric::Euclidean,
+            "DotProduct" => Metric::DotProduct,
+            _ => return Err(JsValue::from_str("Unknown metric")),
+        };
+
+        let index_type = match snapshot.index_type.as_str() {
+            "Flat" => IndexType::Flat,
+            "HNSW" => IndexType::HNSW,
+            _ => return Err(JsValue::from_str("Unknown index type")),
+        };
+
+        let m = snapshot.index_params.hnsw_m.unwrap_or(16);
+        let ef = snapshot.index_params.hnsw_ef_construction.unwrap_or(200);
+
+        let mut db = if index_type == IndexType::HNSW {
+            VectorDB::new_with_hnsw_params(snapshot.dimension, metric, m, ef)?
+        } else {
+            VectorDB::new(snapshot.dimension, metric, index_type)?
+        };
+
+        for entry in snapshot.vectors {
+            let metadata = snapshot.metadata.get(&entry.id).cloned().unwrap_or_default();
+            let meta = VectorMetadata::with_data(entry.id, metadata);
+
+            db.storage
+                .insert(entry.id, entry.vector.clone(), meta)
+                .map_err(|e| JsValue::from_str(&e))?;
+            db.index.insert(entry.id, &entry.vector);
+        }
+
+        Ok(db)
+    }
+
+    /// Save to IndexedDB (async)
+    #[wasm_bindgen]
+    pub fn save_to_indexeddb(&self, db_name: String) -> Promise {
+        let snapshot = match self.export_snapshot() {
+            Ok(s) => s,
+            Err(e) => return Promise::reject(&e),
+        };
+
+        future_to_promise(async move {
+            let mut store = IndexedDBStore::new();
+            store.open().await?;
+            store.save(&db_name, &snapshot).await?;
+            Ok(JsValue::from_str("Saved successfully"))
+        })
+    }
+
+    /// Load from IndexedDB (async)
+    /// Returns success message, actual database needs to be reconstructed from snapshot
+    #[wasm_bindgen]
+    pub fn load_from_indexeddb(db_name: String) -> Promise {
+        future_to_promise(async move {
+            let mut store = IndexedDBStore::new();
+            store.open().await?;
+            let data = store.load(&db_name).await?;
+            // Return the binary data so JS can call import_snapshot
+            let array = js_sys::Uint8Array::new_with_length(data.len() as u32);
+            array.copy_from(&data);
+            Ok(JsValue::from(array))
+        })
+    }
+
+    /// Delete from IndexedDB (async)
+    #[wasm_bindgen]
+    pub fn delete_from_indexeddb(db_name: String) -> Promise {
+        future_to_promise(async move {
+            let mut store = IndexedDBStore::new();
+            store.open().await?;
+            store.delete(&db_name).await?;
+            Ok(JsValue::from_str("Deleted successfully"))
+        })
+    }
+
+    /// List all saved databases in IndexedDB (async)
+    #[wasm_bindgen]
+    pub fn list_saved_databases() -> Promise {
+        future_to_promise(async move {
+            let mut store = IndexedDBStore::new();
+            store.open().await?;
+            let keys = store.list_keys().await?;
+            serde_wasm_bindgen::to_value(&keys)
+                .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+        })
+    }
+
+    /// Get statistics about the database
+    #[wasm_bindgen]
+    pub fn get_stats(&self) -> Result<JsValue, JsValue> {
+        #[derive(Serialize)]
+        struct Stats {
+            version: String,
+            dimension: usize,
+            vector_count: usize,
+            metric: String,
+            index_type: String,
+            hnsw_m: Option<usize>,
+            hnsw_ef: Option<usize>,
+            estimated_size_bytes: usize,
+        }
+
+        let metric_str = match self.metric {
+            DistanceMetric::Cosine => "Cosine",
+            DistanceMetric::Euclidean => "Euclidean",
+            DistanceMetric::DotProduct => "DotProduct",
+        };
+
+        let index_type_str = match self.index_type {
+            IndexType::Flat => "Flat",
+            IndexType::HNSW => "HNSW",
+        };
+
+        let (hnsw_m, hnsw_ef) = match self.index_type {
+            IndexType::HNSW => (Some(self.hnsw_m), Some(self.hnsw_ef)),
+            _ => (None, None),
+        };
+
+        let estimated_size = self.len() * (8 + self.dimension * 4);
+
+        let stats = Stats {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            dimension: self.dimension,
+            vector_count: self.len(),
+            metric: metric_str.to_string(),
+            index_type: index_type_str.to_string(),
+            hnsw_m,
+            hnsw_ef,
+            estimated_size_bytes: estimated_size,
+        };
+
+        serde_wasm_bindgen::to_value(&stats)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+}
+
+impl PartialEq for IndexType {
+    fn eq(&self, other: &Self) -> bool {
+        matches!(
+            (self, other),
+            (IndexType::Flat, IndexType::Flat) | (IndexType::HNSW, IndexType::HNSW)
+        )
     }
 }
 

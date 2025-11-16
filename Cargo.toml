@@ -1,6 +1,6 @@
 [package]
 name = "vecdb-wasm"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["VecDB Team"]
 edition = "2021"
 description = "A high-performance vector database for browsers using WebAssembly"
@@ -22,9 +22,26 @@ web-sys = { version = "0.3", features = [
     "PerformanceEntry",
     "PerformanceMark",
     "PerformanceMeasure",
+    "IdbFactory",
+    "IdbDatabase",
+    "IdbObjectStore",
+    "IdbObjectStoreParameters",
+    "IdbTransaction",
+    "IdbRequest",
+    "IdbOpenDbRequest",
+    "IdbTransactionMode",
+    "IdbCursorWithValue",
+    "IdbVersionChangeEvent",
+    "DomStringList",
+    "DomException",
+    "Event",
+    "EventTarget",
 ] }
 getrandom = { version = "0.2", features = ["js"] }
 rand = "0.8"
+bincode = "1.3"
+base64 = "0.21"
+wasm-bindgen-futures = "0.4"
 console_error_panic_hook = { version = "0.1", optional = true }
 
 [features]
