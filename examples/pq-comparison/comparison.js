@@ -1,4 +1,4 @@
-import init, { VectorDB, Metric, IndexType } from '../../pkg/vecdb_wasm.js';
+import init, { VectorDB, PQHNSWIndex, Metric, IndexType } from '../../pkg/vecdb_wasm.js';
 
 let wasmInitialized = false;
 
@@ -168,45 +168,49 @@ async function testRegularHNSW(vectors, queries, dimension) {
 
 // Test PQ-HNSW
 async function testPQHNSW(vectors, queries, dimension, numSubvectors) {
-    // Note: This is a simulation since we haven't exposed PQ-HNSW to JavaScript yet
-    // We'll calculate expected performance based on PQ characteristics
-
     const numClusters = 256; // Standard PQ configuration
+    const m = 16; // HNSW M parameter
+    const efConstruction = 200; // HNSW ef_construction
 
-    // Build index (simulated - would be slightly slower due to k-means training)
+    // Create PQ-HNSW index
+    const index = new PQHNSWIndex(dimension, Metric.Cosine, numSubvectors, numClusters, m, efConstruction);
+
+    // Build index (includes training)
     const buildStart = performance.now();
-    // Simulate training and indexing time
-    await new Promise(resolve => setTimeout(resolve, 10)); // Simulate k-means training
-    const db = new VectorDB(dimension, Metric.Cosine, IndexType.HNSW);
+
+    // Train the quantizer on first 30% of vectors
+    const trainingSize = Math.min(Math.floor(vectors.length * 0.3), 1000);
+    const trainingData = vectors.slice(0, trainingSize);
+    index.train(trainingData, 10);
+
+    // Insert all vectors
     for (let i = 0; i < vectors.length; i++) {
-        db.insert(i, vectors[i]);
+        index.insert(i, vectors[i]);
     }
     const buildTime = performance.now() - buildStart;
 
-    // Calculate PQ memory usage
-    const pqBytesPerVector = numSubvectors; // 1 byte per subvector
-    const codebookSize = numSubvectors * numClusters * (dimension / numSubvectors) * 4;
-    const hnswOverhead = 1.2;
-    const memoryUsage = Math.round(vectors.length * pqBytesPerVector * hnswOverhead + codebookSize);
+    // Get actual memory usage from PQ-HNSW
+    const stats = index.memory_stats();
+    const memoryUsage = stats.compressed_bytes;
 
-    // Run queries (PQ is typically slightly slower due to distance table computation)
+    // Run queries
     const searchStart = performance.now();
     for (let i = 0; i < queries.length; i++) {
-        db.search(queries[i], 10, false);
+        index.search(queries[i], 10);
     }
     const totalSearchTime = performance.now() - searchStart;
-    const avgSearchTime = totalSearchTime / queries.length * 1.1; // ~10% slower
+    const avgSearchTime = totalSearchTime / queries.length;
 
     // Cleanup
-    db.free();
+    index.free();
 
     return {
         vectorCount: vectors.length,
         memoryUsage,
         memorySizeClass: 'good',
-        buildTime: buildTime * 1.5, // Training adds overhead
+        buildTime,
         avgSearchTime,
-        totalSearchTime: totalSearchTime * 1.1,
+        totalSearchTime,
         searchTimeClass: 'good',
         queriesPerSecond: Math.round(1000 / avgSearchTime)
     };

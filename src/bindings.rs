@@ -1,6 +1,7 @@
 use crate::distance::DistanceMetric;
 use crate::index::Index;
 use crate::index::{FlatIndex, HNSWIndex};
+use crate::index::PQHNSWIndex as PQHNSWIndexInternal;
 use crate::performance::{OperationTimer, PerformanceMetrics};
 use crate::persistence::{DatabaseSnapshot, IndexParams, IndexedDBStore};
 use crate::storage::{VectorMetadata, VectorStorage};
@@ -902,4 +903,424 @@ pub fn normalize_vector(vector: Vec<f32>) -> Vec<f32> {
 #[wasm_bindgen]
 pub fn vector_norm(vector: Vec<f32>) -> f32 {
     crate::distance::vector_norm(&vector)
+}
+
+/// Memory statistics for PQ-HNSW index
+#[wasm_bindgen]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PQMemoryStats {
+    original_bytes: usize,
+    compressed_bytes: usize,
+    compression_ratio: f32,
+}
+
+#[wasm_bindgen]
+impl PQMemoryStats {
+    #[wasm_bindgen(getter)]
+    pub fn original_bytes(&self) -> usize {
+        self.original_bytes
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn compressed_bytes(&self) -> usize {
+        self.compressed_bytes
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn compression_ratio(&self) -> f32 {
+        self.compression_ratio
+    }
+}
+
+/// PQ-HNSW Index: HNSW with Product Quantization for memory efficiency
+///
+/// This index combines HNSW for fast search with Product Quantization for
+/// 10-100x memory compression. Must be trained before inserting vectors.
+///
+/// # Example
+/// ```javascript
+/// import { PQHNSWIndex, Metric } from './pkg/vecdb_wasm.js';
+///
+/// // Create index
+/// const index = new PQHNSWIndex(128, Metric.Cosine, 8, 256, 16, 200);
+///
+/// // Train on sample data
+/// const trainingData = [...]; // Array of vectors
+/// index.train(trainingData, 10);
+///
+/// // Insert vectors
+/// for (let i = 0; i < vectors.length; i++) {
+///     index.insert(i, vectors[i]);
+/// }
+///
+/// // Search
+/// const results = index.search(query, 10);
+///
+/// // Check memory savings
+/// const stats = index.memory_stats();
+/// console.log(`Compression: ${stats.compression_ratio}x`);
+/// ```
+#[wasm_bindgen]
+pub struct PQHNSWIndex {
+    index: PQHNSWIndexInternal,
+    dimension: usize,
+    metric: DistanceMetric,
+    metrics: RefCell<PerformanceMetrics>,
+}
+
+#[wasm_bindgen]
+impl PQHNSWIndex {
+    /// Create a new PQ-HNSW index
+    ///
+    /// # Arguments
+    /// * `dimension` - Vector dimension (must be divisible by num_subvectors)
+    /// * `metric` - Distance metric
+    /// * `num_subvectors` - PQ parameter M (typically 4, 8, or 16)
+    /// * `num_clusters` - PQ parameter K (typically 256)
+    /// * `m` - HNSW M parameter (typically 16)
+    /// * `ef_construction` - HNSW ef_construction parameter (typically 200)
+    ///
+    /// # Example
+    /// ```javascript
+    /// const index = new PQHNSWIndex(128, Metric.Cosine, 8, 256, 16, 200);
+    /// ```
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        dimension: usize,
+        metric: Metric,
+        num_subvectors: usize,
+        num_clusters: usize,
+        m: usize,
+        ef_construction: usize,
+    ) -> Result<PQHNSWIndex, JsValue> {
+        // Validate parameters
+        if dimension % num_subvectors != 0 {
+            return Err(JsValue::from_str(&format!(
+                "Dimension ({}) must be divisible by num_subvectors ({})",
+                dimension, num_subvectors
+            )));
+        }
+
+        let metric_internal: DistanceMetric = metric.into();
+        let index = PQHNSWIndexInternal::new(
+            dimension,
+            metric_internal,
+            num_subvectors,
+            num_clusters,
+            m,
+            ef_construction,
+        );
+
+        Ok(PQHNSWIndex {
+            index,
+            dimension,
+            metric: metric_internal,
+            metrics: RefCell::new(PerformanceMetrics::new()),
+        })
+    }
+
+    /// Train the quantizer on sample data
+    ///
+    /// Must be called before inserting vectors. Training learns the quantization
+    /// codebooks by clustering the training data.
+    ///
+    /// # Arguments
+    /// * `training_data` - Array of training vectors (JS array of arrays)
+    /// * `max_iterations` - Maximum k-means iterations (typically 10-20)
+    ///
+    /// # Example
+    /// ```javascript
+    /// const trainingVectors = [
+    ///     Array.from(new Float32Array([...])),
+    ///     Array.from(new Float32Array([...])),
+    ///     // ... more vectors
+    /// ];
+    /// index.train(trainingVectors, 10);
+    /// ```
+    #[wasm_bindgen]
+    pub fn train(
+        &mut self,
+        training_data: JsValue,
+        max_iterations: usize,
+    ) -> Result<(), JsValue> {
+        let timer = OperationTimer::start();
+
+        // Deserialize training data
+        let data: Vec<Vec<f32>> = serde_wasm_bindgen::from_value(training_data)
+            .map_err(|e| JsValue::from_str(&format!("Invalid training data format: {}", e)))?;
+
+        // Validate training data
+        if data.is_empty() {
+            return Err(JsValue::from_str("Training data cannot be empty"));
+        }
+
+        for (i, vec) in data.iter().enumerate() {
+            if vec.len() != self.dimension {
+                return Err(JsValue::from_str(&format!(
+                    "Training vector {} dimension mismatch: expected {}, got {}",
+                    i,
+                    self.dimension,
+                    vec.len()
+                )));
+            }
+        }
+
+        // Train the quantizer
+        self.index.train(&data, max_iterations);
+
+        // Record performance (using batch as closest analog to training)
+        self.metrics.borrow_mut().record_batch(
+            data.len(),
+            timer.elapsed_ms(),
+        );
+
+        Ok(())
+    }
+
+    /// Check if the quantizer is trained
+    ///
+    /// # Returns
+    /// true if trained, false otherwise
+    #[wasm_bindgen]
+    pub fn is_trained(&self) -> bool {
+        self.index.is_trained()
+    }
+
+    /// Insert a vector into the index
+    ///
+    /// The quantizer must be trained before insertion.
+    ///
+    /// # Arguments
+    /// * `id` - Unique vector ID
+    /// * `vector` - Float32Array containing the vector
+    ///
+    /// # Example
+    /// ```javascript
+    /// const vector = new Float32Array(128);
+    /// // ... fill vector
+    /// index.insert(0, Array.from(vector));
+    /// ```
+    #[wasm_bindgen]
+    pub fn insert(&mut self, id: u64, vector: Vec<f32>) -> Result<(), JsValue> {
+        let timer = OperationTimer::start();
+
+        // Validate dimension
+        if vector.len() != self.dimension {
+            return Err(JsValue::from_str(&format!(
+                "Vector dimension mismatch: expected {}, got {}",
+                self.dimension,
+                vector.len()
+            )));
+        }
+
+        // Check if trained
+        if !self.index.is_trained() {
+            return Err(JsValue::from_str(
+                "Quantizer must be trained before insertion. Call train() first.",
+            ));
+        }
+
+        // Insert into index
+        self.index.insert(id, &vector);
+
+        // Record performance
+        self.metrics.borrow_mut().record_insert(timer.elapsed_ms());
+
+        Ok(())
+    }
+
+    /// Batch insert multiple vectors
+    ///
+    /// More efficient than individual inserts.
+    ///
+    /// # Arguments
+    /// * `vectors` - Array of {id, vector} objects
+    ///
+    /// # Returns
+    /// Number of vectors inserted
+    ///
+    /// # Example
+    /// ```javascript
+    /// const vectors = [
+    ///     { id: 0, vector: Array.from(new Float32Array(128)) },
+    ///     { id: 1, vector: Array.from(new Float32Array(128)) },
+    /// ];
+    /// const count = index.batch_insert(vectors);
+    /// ```
+    #[wasm_bindgen]
+    pub fn batch_insert(&mut self, vectors: JsValue) -> Result<usize, JsValue> {
+        let timer = OperationTimer::start();
+
+        // Check if trained
+        if !self.index.is_trained() {
+            return Err(JsValue::from_str(
+                "Quantizer must be trained before insertion. Call train() first.",
+            ));
+        }
+
+        // Deserialize input
+        #[derive(Deserialize)]
+        struct VectorInput {
+            id: u64,
+            vector: Vec<f32>,
+        }
+
+        let inputs: Vec<VectorInput> = serde_wasm_bindgen::from_value(vectors)
+            .map_err(|e| JsValue::from_str(&format!("Invalid input format: {}", e)))?;
+
+        let mut count = 0;
+        for input in inputs {
+            if input.vector.len() != self.dimension {
+                return Err(JsValue::from_str(&format!(
+                    "Vector {} dimension mismatch: expected {}, got {}",
+                    input.id,
+                    self.dimension,
+                    input.vector.len()
+                )));
+            }
+
+            self.index.insert(input.id, &input.vector);
+            count += 1;
+        }
+
+        // Record performance
+        self.metrics
+            .borrow_mut()
+            .record_batch(count, timer.elapsed_ms());
+
+        Ok(count)
+    }
+
+    /// Search for k nearest neighbors
+    ///
+    /// # Arguments
+    /// * `query` - Query vector
+    /// * `k` - Number of results to return
+    ///
+    /// # Returns
+    /// Array of search results with id and score
+    ///
+    /// # Example
+    /// ```javascript
+    /// const query = new Float32Array(128);
+    /// const results = index.search(Array.from(query), 10);
+    /// results.forEach(r => console.log(`ID: ${r.id}, Score: ${r.score}`));
+    /// ```
+    #[wasm_bindgen]
+    pub fn search(&self, query: Vec<f32>, k: usize) -> Result<Vec<SearchResult>, JsValue> {
+        let timer = OperationTimer::start();
+
+        // Validate dimension
+        if query.len() != self.dimension {
+            return Err(JsValue::from_str(&format!(
+                "Query dimension mismatch: expected {}, got {}",
+                self.dimension,
+                query.len()
+            )));
+        }
+
+        // Perform search
+        let results = self.index.search(&query, k);
+
+        // Convert to JS-compatible format
+        let js_results: Vec<SearchResult> = results
+            .into_iter()
+            .map(|r| SearchResult {
+                id: r.id,
+                score: r.score,
+                metadata: None,
+            })
+            .collect();
+
+        // Record performance
+        self.metrics.borrow_mut().record_search(timer.elapsed_ms());
+
+        Ok(js_results)
+    }
+
+    /// Remove a vector from the index
+    ///
+    /// # Arguments
+    /// * `id` - Vector ID to remove
+    ///
+    /// # Returns
+    /// true if removed, false if not found
+    #[wasm_bindgen]
+    pub fn remove(&mut self, id: u64) -> bool {
+        self.index.remove(id)
+    }
+
+    /// Get the number of vectors in the index
+    ///
+    /// # Returns
+    /// Number of vectors
+    #[wasm_bindgen]
+    pub fn len(&self) -> usize {
+        self.index.len()
+    }
+
+    /// Check if the index is empty
+    ///
+    /// # Returns
+    /// true if empty, false otherwise
+    #[wasm_bindgen]
+    pub fn is_empty(&self) -> bool {
+        self.index.is_empty()
+    }
+
+    /// Clear all vectors from the index
+    ///
+    /// Note: This does NOT clear the trained quantizer.
+    /// You can continue inserting vectors without retraining.
+    #[wasm_bindgen]
+    pub fn clear(&mut self) {
+        self.index.clear();
+    }
+
+    /// Get memory usage statistics
+    ///
+    /// Returns information about compression ratio and memory savings.
+    ///
+    /// # Returns
+    /// PQMemoryStats object with original size, compressed size, and ratio
+    ///
+    /// # Example
+    /// ```javascript
+    /// const stats = index.memory_stats();
+    /// console.log(`Original: ${stats.original_bytes} bytes`);
+    /// console.log(`Compressed: ${stats.compressed_bytes} bytes`);
+    /// console.log(`Compression: ${stats.compression_ratio}x`);
+    /// ```
+    #[wasm_bindgen]
+    pub fn memory_stats(&self) -> PQMemoryStats {
+        let (original, compressed, ratio) = self.index.memory_stats();
+        PQMemoryStats {
+            original_bytes: original,
+            compressed_bytes: compressed,
+            compression_ratio: ratio,
+        }
+    }
+
+    /// Get performance metrics
+    ///
+    /// # Returns
+    /// PerformanceMetrics object with operation statistics as JSON
+    ///
+    /// # Example
+    /// ```javascript
+    /// const metrics = index.get_performance_metrics();
+    /// console.log(JSON.parse(metrics));
+    /// ```
+    #[wasm_bindgen]
+    pub fn get_performance_metrics(&self) -> Result<JsValue, JsValue> {
+        let metrics = self.metrics.borrow().clone();
+        serde_wasm_bindgen::to_value(&metrics)
+            .map_err(|e| JsValue::from_str(&format!("Failed to serialize metrics: {}", e)))
+    }
+
+    /// Reset performance metrics
+    #[wasm_bindgen]
+    pub fn reset_metrics(&mut self) {
+        *self.metrics.borrow_mut() = PerformanceMetrics::new();
+    }
 }

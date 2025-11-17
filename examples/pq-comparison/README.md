@@ -122,21 +122,33 @@ Product Quantization splits vectors into M subvectors and quantizes each indepen
 
 ### Current Status
 
-This example demonstrates PQ concepts using simulation. The full PQ-HNSW implementation is available in Rust:
+This example uses the **real PQ-HNSW implementation**! The comparison shows actual performance data:
 
-- `src/quantization/mod.rs` - Product quantizer implementation
-- `src/index/pq_hnsw.rs` - PQ-HNSW index
-- Tests validate 64x compression with reasonable accuracy
+- ✅ `src/quantization/mod.rs` - Product quantizer implementation
+- ✅ `src/index/pq_hnsw.rs` - PQ-HNSW index
+- ✅ `src/bindings.rs` - WASM bindings for JavaScript
+- ✅ Full training API exposed to JavaScript
+- ✅ Real memory statistics from PQ compression
 
-### Future Work
+All metrics shown in this example are measured from the actual Rust/WASM implementation, not simulated.
 
-To use PQ-HNSW from JavaScript, we need to:
+### How to Build
 
-1. ✅ Implement ProductQuantizer in Rust (DONE)
-2. ✅ Implement PQHNSWIndex (DONE)
-3. ⏳ Expose to WASM interface
-4. ⏳ Add training API
-5. ⏳ Benchmark real performance
+To use this example, you need to build the WASM package first:
+
+```bash
+# Install wasm-pack if you haven't already
+curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+# Build the WASM package
+npm run build:dev
+
+# Serve the examples
+cd examples
+python3 -m http.server 8080
+
+# Open http://localhost:8080/pq-comparison/
+```
 
 ## Performance Expectations
 
@@ -184,10 +196,13 @@ Summary:
 
 ## Integration Example
 
-Future JavaScript API:
+JavaScript API (available now):
 
 ```javascript
-import { PQHNSWIndex, Metric } from 'vecdb-wasm';
+import init, { PQHNSWIndex, Metric } from './pkg/vecdb_wasm.js';
+
+// Initialize WASM
+await init();
 
 // Create PQ-HNSW index
 const index = new PQHNSWIndex(
@@ -199,20 +214,36 @@ const index = new PQHNSWIndex(
     200           // ef_construction
 );
 
-// Train on sample data
-await index.train(trainingVectors, 10);
+// Train on sample data (required before insertion)
+const trainingData = [...]; // Array of vectors
+index.train(trainingData, 10);
 
 // Insert vectors (will be compressed)
 for (let i = 0; i < vectors.length; i++) {
     index.insert(i, vectors[i]);
 }
 
+// Or use batch insert for better performance
+index.batch_insert(vectors.map((v, i) => ({ id: i, vector: v })));
+
 // Search (uses compressed vectors)
 const results = index.search(query, 10);
+results.forEach(r => {
+    console.log(`ID: ${r.id}, Score: ${r.score}`);
+});
 
 // Check compression
-const stats = index.memoryStats();
-console.log(`Compression: ${stats.ratio}x`);
+const stats = index.memory_stats();
+console.log(`Original: ${stats.original_bytes} bytes`);
+console.log(`Compressed: ${stats.compressed_bytes} bytes`);
+console.log(`Compression: ${stats.compression_ratio}x`);
+
+// Get performance metrics
+const metrics = index.get_performance_metrics();
+console.log(metrics);
+
+// Cleanup
+index.free();
 ```
 
 ## License

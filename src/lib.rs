@@ -7,7 +7,7 @@ pub mod persistence;
 pub mod quantization;
 pub mod storage;
 
-pub use bindings::{IndexType, Metric, VectorDB};
+pub use bindings::{IndexType, Metric, PQHNSWIndex, PQMemoryStats, VectorDB};
 pub use compat::BrowserCompat;
 pub use distance::{cosine_similarity, euclidean_distance, DistanceMetric};
 pub use index::{FlatIndex, Index, SearchResult};
