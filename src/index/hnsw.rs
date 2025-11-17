@@ -1,7 +1,7 @@
 use super::{Index, SearchResult};
 use crate::distance::DistanceMetric;
-use std::collections::{BinaryHeap, HashMap, HashSet};
 use std::cmp::Ordering;
+use std::collections::{BinaryHeap, HashMap, HashSet};
 
 /// HNSW (Hierarchical Navigable Small World) index
 /// High-performance approximate nearest neighbor search
@@ -33,11 +33,11 @@ impl Layer {
     }
 
     fn insert_node(&mut self, id: u64) {
-        self.graph.entry(id).or_insert_with(Vec::new);
+        self.graph.entry(id).or_default();
     }
 
     fn add_edge(&mut self, from: u64, to: u64, m_max: usize) {
-        let neighbors = self.graph.entry(from).or_insert_with(Vec::new);
+        let neighbors = self.graph.entry(from).or_default();
         if !neighbors.contains(&to) {
             neighbors.push(to);
             // Prune connections if exceeds m_max
@@ -83,7 +83,9 @@ impl PartialOrd for Candidate {
 impl Ord for Candidate {
     fn cmp(&self, other: &Self) -> Ordering {
         // Min-heap: smaller distances first
-        other.distance.partial_cmp(&self.distance)
+        other
+            .distance
+            .partial_cmp(&self.distance)
             .unwrap_or(Ordering::Equal)
     }
 }
@@ -142,8 +144,14 @@ impl HNSWIndex {
         for ep in entry_points {
             if let Some(vec) = self.vectors.get(&ep) {
                 let dist = self.calculate_distance_internal(query, vec);
-                candidates.push(Candidate { id: ep, distance: dist });
-                results.push(Candidate { id: ep, distance: dist });
+                candidates.push(Candidate {
+                    id: ep,
+                    distance: dist,
+                });
+                results.push(Candidate {
+                    id: ep,
+                    distance: dist,
+                });
                 visited.insert(ep);
             }
         }
@@ -165,13 +173,25 @@ impl HNSWIndex {
                                 let dist = self.calculate_distance_internal(query, neighbor_vec);
 
                                 if results.len() < ef {
-                                    candidates.push(Candidate { id: neighbor_id, distance: dist });
-                                    results.push(Candidate { id: neighbor_id, distance: dist });
+                                    candidates.push(Candidate {
+                                        id: neighbor_id,
+                                        distance: dist,
+                                    });
+                                    results.push(Candidate {
+                                        id: neighbor_id,
+                                        distance: dist,
+                                    });
                                 } else if let Some(worst) = results.peek() {
                                     if dist < worst.distance {
                                         results.pop();
-                                        results.push(Candidate { id: neighbor_id, distance: dist });
-                                        candidates.push(Candidate { id: neighbor_id, distance: dist });
+                                        results.push(Candidate {
+                                            id: neighbor_id,
+                                            distance: dist,
+                                        });
+                                        candidates.push(Candidate {
+                                            id: neighbor_id,
+                                            distance: dist,
+                                        });
                                     }
                                 }
                             }
@@ -187,15 +207,15 @@ impl HNSWIndex {
     fn calculate_distance_internal(&self, a: &[f32], b: &[f32]) -> f32 {
         // For HNSW we use actual distance (lower is better)
         match self.metric {
-            DistanceMetric::Cosine => {
-                1.0 - crate::distance::cosine_similarity(a, b)
-            }
-            DistanceMetric::Euclidean => {
-                crate::distance::euclidean_distance(a, b)
-            }
+            DistanceMetric::Cosine => 1.0 - crate::distance::cosine_similarity(a, b),
+            DistanceMetric::Euclidean => crate::distance::euclidean_distance(a, b),
             DistanceMetric::DotProduct => {
                 -crate::distance::dot_product(a, b) // Negative for min-heap
             }
+            DistanceMetric::Manhattan => crate::distance::manhattan_distance(a, b),
+            DistanceMetric::Chebyshev => crate::distance::chebyshev_distance(a, b),
+            DistanceMetric::Hamming => crate::distance::hamming_distance(a, b),
+            DistanceMetric::Angular => crate::distance::angular_distance(a, b),
         }
     }
 
@@ -238,8 +258,17 @@ impl Index for HNSWIndex {
 
             // Insert at each layer
             for layer_idx in (0..=level).rev() {
-                let m_max = if layer_idx == 0 { self.m_max0 } else { self.m_max };
-                let candidates = self.search_layer(vector, entry_points.clone(), self.ef_construction, layer_idx);
+                let m_max = if layer_idx == 0 {
+                    self.m_max0
+                } else {
+                    self.m_max
+                };
+                let candidates = self.search_layer(
+                    vector,
+                    entry_points.clone(),
+                    self.ef_construction,
+                    layer_idx,
+                );
 
                 // Connect to M nearest neighbors
                 for candidate in candidates.iter().take(self.m) {
@@ -289,6 +318,10 @@ impl Index for HNSWIndex {
                         DistanceMetric::Cosine => 1.0 - c.distance,
                         DistanceMetric::Euclidean => 1.0 / (1.0 + c.distance),
                         DistanceMetric::DotProduct => -c.distance,
+                        DistanceMetric::Manhattan => 1.0 / (1.0 + c.distance),
+                        DistanceMetric::Chebyshev => 1.0 / (1.0 + c.distance),
+                        DistanceMetric::Hamming => 1.0 / (1.0 + c.distance),
+                        DistanceMetric::Angular => 1.0 / (1.0 + c.distance),
                     };
                     SearchResult::new(c.id, score)
                 })

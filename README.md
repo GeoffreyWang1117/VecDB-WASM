@@ -1,6 +1,6 @@
 # VecDB-WASM 🚀
 
-**v0.2.0** - A production-grade vector database for browsers, powered by WebAssembly and Rust.
+**v0.3.0** - A production-grade vector database for browsers, powered by WebAssembly and Rust.
 
 ## 🎯 Features
 
@@ -9,6 +9,12 @@
 - **Multiple Index Types**: HNSW (fast approximate) and Flat (exact) indices
 - **Advanced Search**: Metadata filtering, customizable parameters, batch operations
 - **SIMD Acceleration**: Optimized distance calculations using WebAssembly SIMD128
+- **7 Distance Metrics**: Cosine, Euclidean, Dot Product, Manhattan, Chebyshev, Hamming, Angular
+
+### Performance & Monitoring
+- **Performance Metrics**: Built-in tracking of operation times and throughput
+- **Web Worker Support**: Non-blocking operations using background threads
+- **Batch Operations**: Optimized batch insert and search for large datasets
 
 ### Persistence & Data Management
 - **IndexedDB Integration**: Save and load databases directly in the browser
@@ -17,7 +23,7 @@
 - **Type-Safe**: Full TypeScript support
 
 ### Production Ready
-- **Comprehensive Testing**: 15+ unit tests covering all modules
+- **Comprehensive Testing**: 31 unit tests covering all modules
 - **Well Documented**: API docs, development guides, and examples
 - **Performance Benchmarking**: Built-in benchmark suite
 - **Error Handling**: Robust validation and error messages
@@ -67,6 +73,7 @@ Open http://localhost:8080 in your browser.
 - **benchmark.html** - Performance testing suite
 - **persistence.html** - Advanced features including IndexedDB persistence and metadata filtering
 - **compatibility.html** - Browser compatibility checker and feature detection
+- **worker/** - Web Worker integration for non-blocking operations
 
 ## 🌐 Browser Compatibility
 

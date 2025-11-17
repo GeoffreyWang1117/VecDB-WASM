@@ -1,5 +1,5 @@
-pub mod snapshot;
 pub mod indexeddb;
+pub mod snapshot;
 
-pub use snapshot::{DatabaseSnapshot, IndexParams, VectorEntry};
 pub use indexeddb::IndexedDBStore;
+pub use snapshot::{DatabaseSnapshot, IndexParams, VectorEntry};

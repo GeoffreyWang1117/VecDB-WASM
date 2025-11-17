@@ -1,5 +1,5 @@
+use vecdb_wasm::{IndexType, Metric, VectorDB};
 use wasm_bindgen_test::*;
-use vecdb_wasm::{VectorDB, IndexType, Metric};
 
 wasm_bindgen_test_configure!(run_in_browser);
 

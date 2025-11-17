@@ -1,6 +1,6 @@
 {
   "name": "vecdb-wasm",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Production-grade vector database for browsers using WebAssembly with SIMD acceleration",
   "main": "pkg/vecdb_wasm.js",
   "types": "pkg/vecdb_wasm.d.ts",

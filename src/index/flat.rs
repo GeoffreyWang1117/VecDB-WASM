@@ -1,7 +1,7 @@
 use super::{Index, SearchResult};
 use crate::distance::{calculate_distance, DistanceMetric};
-use std::collections::BinaryHeap;
 use std::cmp::Ordering;
+use std::collections::BinaryHeap;
 
 /// Simple flat index that performs brute-force search
 /// Serves as baseline for performance comparison
@@ -36,7 +36,8 @@ impl PartialOrd for ScoredItem {
 impl Ord for ScoredItem {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse ordering for max-heap (we want to remove largest/worst scores)
-        self.score.partial_cmp(&other.score)
+        self.score
+            .partial_cmp(&other.score)
             .unwrap_or(Ordering::Equal)
     }
 }

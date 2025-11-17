@@ -1,13 +1,15 @@
-use wasm_bindgen::prelude::*;
-use wasm_bindgen_futures::future_to_promise;
 use crate::distance::DistanceMetric;
 use crate::index::Index;
 use crate::index::{FlatIndex, HNSWIndex};
-use crate::storage::{VectorMetadata, VectorStorage};
+use crate::performance::{OperationTimer, PerformanceMetrics};
 use crate::persistence::{DatabaseSnapshot, IndexParams, IndexedDBStore};
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
+use crate::storage::{VectorMetadata, VectorStorage};
 use js_sys::Promise;
+use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
+use std::collections::HashMap;
+use wasm_bindgen::prelude::*;
+use wasm_bindgen_futures::future_to_promise;
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy)]
@@ -22,6 +24,10 @@ pub enum Metric {
     Cosine,
     Euclidean,
     DotProduct,
+    Manhattan,
+    Chebyshev,
+    Hamming,
+    Angular,
 }
 
 impl From<Metric> for DistanceMetric {
@@ -30,6 +36,10 @@ impl From<Metric> for DistanceMetric {
             Metric::Cosine => DistanceMetric::Cosine,
             Metric::Euclidean => DistanceMetric::Euclidean,
             Metric::DotProduct => DistanceMetric::DotProduct,
+            Metric::Manhattan => DistanceMetric::Manhattan,
+            Metric::Chebyshev => DistanceMetric::Chebyshev,
+            Metric::Hamming => DistanceMetric::Hamming,
+            Metric::Angular => DistanceMetric::Angular,
         }
     }
 }
@@ -71,6 +81,7 @@ pub struct VectorDB {
     index_type: IndexType,
     hnsw_m: usize,
     hnsw_ef: usize,
+    metrics: RefCell<PerformanceMetrics>,
 }
 
 #[wasm_bindgen]
@@ -82,7 +93,11 @@ impl VectorDB {
     /// * `metric` - Distance metric (Cosine, Euclidean, DotProduct)
     /// * `index_type` - Index type (Flat, HNSW)
     #[wasm_bindgen(constructor)]
-    pub fn new(dimension: usize, metric: Metric, index_type: IndexType) -> Result<VectorDB, JsValue> {
+    pub fn new(
+        dimension: usize,
+        metric: Metric,
+        index_type: IndexType,
+    ) -> Result<VectorDB, JsValue> {
         let metric_internal: DistanceMetric = metric.into();
         let m = 16;
         let ef = 200;
@@ -100,6 +115,7 @@ impl VectorDB {
             index_type,
             hnsw_m: m,
             hnsw_ef: ef,
+            metrics: RefCell::new(PerformanceMetrics::new()),
         })
     }
 
@@ -113,7 +129,12 @@ impl VectorDB {
     ) -> Result<VectorDB, JsValue> {
         let metric_internal: DistanceMetric = metric.into();
 
-        let index = Box::new(HNSWIndex::new(dimension, metric_internal, m, ef_construction));
+        let index = Box::new(HNSWIndex::new(
+            dimension,
+            metric_internal,
+            m,
+            ef_construction,
+        ));
 
         Ok(VectorDB {
             storage: VectorStorage::new(dimension),
@@ -123,6 +144,7 @@ impl VectorDB {
             index_type: IndexType::HNSW,
             hnsw_m: m,
             hnsw_ef: ef_construction,
+            metrics: RefCell::new(PerformanceMetrics::new()),
         })
     }
 
@@ -133,7 +155,14 @@ impl VectorDB {
     /// * `vector` - Float32Array containing the vector
     /// * `metadata` - Optional JSON string containing metadata
     #[wasm_bindgen]
-    pub fn insert(&mut self, id: u64, vector: Vec<f32>, metadata: Option<String>) -> Result<(), JsValue> {
+    pub fn insert(
+        &mut self,
+        id: u64,
+        vector: Vec<f32>,
+        metadata: Option<String>,
+    ) -> Result<(), JsValue> {
+        let timer = OperationTimer::start();
+
         if vector.len() != self.dimension {
             return Err(JsValue::from_str(&format!(
                 "Vector dimension mismatch: expected {}, got {}",
@@ -152,11 +181,15 @@ impl VectorDB {
         };
 
         // Insert into storage
-        self.storage.insert(id, vector.clone(), meta)
+        self.storage
+            .insert(id, vector.clone(), meta)
             .map_err(|e| JsValue::from_str(&e))?;
 
         // Insert into index
         self.index.insert(id, &vector);
+
+        // Record performance
+        self.metrics.borrow_mut().record_insert(timer.elapsed_ms());
 
         Ok(())
     }
@@ -168,7 +201,14 @@ impl VectorDB {
     /// * `k` - Number of results to return
     /// * `include_metadata` - Whether to include metadata in results
     #[wasm_bindgen]
-    pub fn search(&self, query: Vec<f32>, k: usize, include_metadata: bool) -> Result<JsValue, JsValue> {
+    pub fn search(
+        &self,
+        query: Vec<f32>,
+        k: usize,
+        include_metadata: bool,
+    ) -> Result<JsValue, JsValue> {
+        let timer = OperationTimer::start();
+
         if query.len() != self.dimension {
             return Err(JsValue::from_str(&format!(
                 "Query dimension mismatch: expected {}, got {}",
@@ -184,7 +224,8 @@ impl VectorDB {
             .into_iter()
             .map(|r| {
                 let metadata = if include_metadata {
-                    self.storage.get_metadata(r.id)
+                    self.storage
+                        .get_metadata(r.id)
                         .and_then(|m| serde_json::to_string(&m.data).ok())
                 } else {
                     None
@@ -197,6 +238,9 @@ impl VectorDB {
                 }
             })
             .collect();
+
+        // Record performance
+        self.metrics.borrow_mut().record_search(timer.elapsed_ms());
 
         serde_wasm_bindgen::to_value(&js_results)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
@@ -237,12 +281,14 @@ impl VectorDB {
     /// Get vector by ID
     #[wasm_bindgen]
     pub fn get_vector(&self, id: u64) -> Option<Vec<f32>> {
-        self.storage.get_vector(id).map(|v| v.clone())
+        self.storage.get_vector(id).cloned()
     }
 
     /// Batch insert multiple vectors
     #[wasm_bindgen]
     pub fn batch_insert(&mut self, vectors: JsValue) -> Result<usize, JsValue> {
+        let timer = OperationTimer::start();
+
         #[derive(Deserialize)]
         struct BatchVector {
             id: u64,
@@ -253,22 +299,29 @@ impl VectorDB {
         let batch: Vec<BatchVector> = serde_wasm_bindgen::from_value(vectors)
             .map_err(|e| JsValue::from_str(&format!("Invalid batch data: {}", e)))?;
 
+        let batch_size = batch.len();
         let mut count = 0;
         for item in batch {
             if item.vector.len() != self.dimension {
                 continue; // Skip invalid vectors
             }
 
-            let meta = VectorMetadata::with_data(
-                item.id,
-                item.metadata.unwrap_or_default()
-            );
+            let meta = VectorMetadata::with_data(item.id, item.metadata.unwrap_or_default());
 
-            if self.storage.insert(item.id, item.vector.clone(), meta).is_ok() {
+            if self
+                .storage
+                .insert(item.id, item.vector.clone(), meta)
+                .is_ok()
+            {
                 self.index.insert(item.id, &item.vector);
                 count += 1;
             }
         }
+
+        // Record performance
+        self.metrics
+            .borrow_mut()
+            .record_batch(batch_size, timer.elapsed_ms());
 
         Ok(count)
     }
@@ -351,6 +404,10 @@ impl VectorDB {
             DistanceMetric::Cosine => "Cosine",
             DistanceMetric::Euclidean => "Euclidean",
             DistanceMetric::DotProduct => "DotProduct",
+            DistanceMetric::Manhattan => "Manhattan",
+            DistanceMetric::Chebyshev => "Chebyshev",
+            DistanceMetric::Hamming => "Hamming",
+            DistanceMetric::Angular => "Angular",
         };
 
         let index_type_str = match self.index_type {
@@ -380,9 +437,7 @@ impl VectorDB {
             snapshot.add_vector(id, vector.clone(), metadata);
         }
 
-        snapshot
-            .to_binary()
-            .map_err(|e| JsValue::from_str(&e))
+        snapshot.to_binary().map_err(|e| JsValue::from_str(&e))
     }
 
     /// Export database snapshot as JSON
@@ -392,6 +447,10 @@ impl VectorDB {
             DistanceMetric::Cosine => "Cosine",
             DistanceMetric::Euclidean => "Euclidean",
             DistanceMetric::DotProduct => "DotProduct",
+            DistanceMetric::Manhattan => "Manhattan",
+            DistanceMetric::Chebyshev => "Chebyshev",
+            DistanceMetric::Hamming => "Hamming",
+            DistanceMetric::Angular => "Angular",
         };
 
         let index_type_str = match self.index_type {
@@ -432,6 +491,10 @@ impl VectorDB {
             "Cosine" => Metric::Cosine,
             "Euclidean" => Metric::Euclidean,
             "DotProduct" => Metric::DotProduct,
+            "Manhattan" => Metric::Manhattan,
+            "Chebyshev" => Metric::Chebyshev,
+            "Hamming" => Metric::Hamming,
+            "Angular" => Metric::Angular,
             _ => return Err(JsValue::from_str("Unknown metric")),
         };
 
@@ -452,7 +515,11 @@ impl VectorDB {
 
         // Restore all vectors
         for entry in snapshot.vectors {
-            let metadata = snapshot.metadata.get(&entry.id).cloned().unwrap_or_default();
+            let metadata = snapshot
+                .metadata
+                .get(&entry.id)
+                .cloned()
+                .unwrap_or_default();
             let meta = VectorMetadata::with_data(entry.id, metadata);
 
             db.storage
@@ -473,6 +540,10 @@ impl VectorDB {
             "Cosine" => Metric::Cosine,
             "Euclidean" => Metric::Euclidean,
             "DotProduct" => Metric::DotProduct,
+            "Manhattan" => Metric::Manhattan,
+            "Chebyshev" => Metric::Chebyshev,
+            "Hamming" => Metric::Hamming,
+            "Angular" => Metric::Angular,
             _ => return Err(JsValue::from_str("Unknown metric")),
         };
 
@@ -492,7 +563,11 @@ impl VectorDB {
         };
 
         for entry in snapshot.vectors {
-            let metadata = snapshot.metadata.get(&entry.id).cloned().unwrap_or_default();
+            let metadata = snapshot
+                .metadata
+                .get(&entry.id)
+                .cloned()
+                .unwrap_or_default();
             let meta = VectorMetadata::with_data(entry.id, metadata);
 
             db.storage
@@ -571,7 +646,12 @@ impl VectorDB {
     /// # Returns
     /// Array of arrays of search results
     #[wasm_bindgen]
-    pub fn batch_search(&self, queries: JsValue, k: usize, include_metadata: bool) -> Result<JsValue, JsValue> {
+    pub fn batch_search(
+        &self,
+        queries: JsValue,
+        k: usize,
+        include_metadata: bool,
+    ) -> Result<JsValue, JsValue> {
         let queries: Vec<Vec<f32>> = serde_wasm_bindgen::from_value(queries)
             .map_err(|e| JsValue::from_str(&format!("Invalid queries format: {}", e)))?;
 
@@ -594,9 +674,9 @@ impl VectorDB {
                     id: r.id,
                     score: r.score,
                     metadata: if include_metadata {
-                        self.storage.get_metadata(r.id).map(|m| {
-                            serde_json::to_string(&m.data).unwrap_or_default()
-                        })
+                        self.storage
+                            .get_metadata(r.id)
+                            .map(|m| serde_json::to_string(&m.data).unwrap_or_default())
                     } else {
                         None
                     },
@@ -648,10 +728,14 @@ impl VectorDB {
         let mut results: Vec<SearchResult> = candidates
             .into_iter()
             .filter(|r| {
-                // For distance metrics (Euclidean), smaller is better
-                // For similarity metrics (Cosine, DotProduct), larger is better
+                // For distance metrics, smaller distance is better
+                // For similarity metrics, larger score is better
                 match self.metric {
-                    DistanceMetric::Euclidean => {
+                    DistanceMetric::Euclidean
+                    | DistanceMetric::Manhattan
+                    | DistanceMetric::Chebyshev
+                    | DistanceMetric::Hamming
+                    | DistanceMetric::Angular => {
                         // Convert back from similarity score to distance
                         let dist = if r.score == f32::MAX {
                             0.0
@@ -670,9 +754,9 @@ impl VectorDB {
                 id: r.id,
                 score: r.score,
                 metadata: if include_metadata {
-                    self.storage.get_metadata(r.id).map(|m| {
-                        serde_json::to_string(&m.data).unwrap_or_default()
-                    })
+                    self.storage
+                        .get_metadata(r.id)
+                        .map(|m| serde_json::to_string(&m.data).unwrap_or_default())
                 } else {
                     None
                 },
@@ -705,6 +789,10 @@ impl VectorDB {
             DistanceMetric::Cosine => "Cosine",
             DistanceMetric::Euclidean => "Euclidean",
             DistanceMetric::DotProduct => "DotProduct",
+            DistanceMetric::Manhattan => "Manhattan",
+            DistanceMetric::Chebyshev => "Chebyshev",
+            DistanceMetric::Hamming => "Hamming",
+            DistanceMetric::Angular => "Angular",
         };
 
         let index_type_str = match self.index_type {
@@ -732,6 +820,27 @@ impl VectorDB {
 
         serde_wasm_bindgen::to_value(&stats)
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Get performance metrics
+    ///
+    /// Returns comprehensive performance statistics including:
+    /// - Total number of searches, inserts, and batch operations
+    /// - Average and peak operation times
+    /// - Throughput metrics
+    #[wasm_bindgen]
+    pub fn get_performance_metrics(&self) -> Result<JsValue, JsValue> {
+        let metrics = self.metrics.borrow();
+        serde_wasm_bindgen::to_value(&*metrics)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Reset performance metrics
+    ///
+    /// Clears all performance statistics and starts fresh tracking
+    #[wasm_bindgen]
+    pub fn reset_performance_metrics(&self) {
+        self.metrics.borrow_mut().reset();
     }
 }
 

@@ -5,6 +5,62 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2025-11-17
+
+### Added
+
+#### Distance Metrics
+- Manhattan distance (L1 norm) - ideal for grid-based data
+- Chebyshev distance (L∞ norm) - maximum metric for chessboard distance
+- Hamming distance - for binary/integer vector comparison
+- Angular distance - measures angle between vectors in radians
+- All new metrics support both scalar and SIMD implementations
+- Comprehensive test coverage for all distance functions
+
+#### Performance Monitoring
+- `PerformanceMetrics` module for tracking database operations
+- Automatic tracking of search, insert, and batch operation times
+- `get_performance_metrics()` API to retrieve detailed statistics
+- `reset_performance_metrics()` to clear metrics
+- Metrics include:
+  - Total operations count
+  - Average operation times
+  - Peak operation times
+  - Batch operation statistics
+
+#### Web Worker Integration
+- Complete Web Worker implementation for non-blocking operations
+- `VectorDBWorker` client with Promise-based API
+- Background thread execution prevents UI freezing
+- Full API coverage including all search, insert, and persistence methods
+- Interactive example with real-time metrics (`examples/worker/`)
+- Comprehensive documentation and usage examples
+
+#### API Enhancements
+- TypeScript definitions updated with all new features
+- Complete type safety for all 7 distance metrics
+- Performance metrics TypeScript interface
+- Improved error handling in import/export operations
+
+### Changed
+- Bumped version to 0.3.0 across all configuration files
+- Updated TypeScript type definitions version
+- Enhanced documentation with new feature examples
+- Test suite expanded from 24 to 31 tests
+
+### Fixed
+- Non-exhaustive pattern matching in HNSW index for new metrics
+- Metric string conversion in snapshot import/export
+- Database statistics now include all distance metrics
+
+## [0.2.0] - 2025-11-16
+
+### Added
+- IndexedDB persistence layer
+- Comprehensive documentation suite
+- Browser compatibility detection
+- Enhanced examples and demos
+
 ## [0.1.0] - 2025-11-16
 
 ### Added

@@ -1,6 +1,6 @@
 /**
  * VecDB-WASM TypeScript Type Definitions
- * Version: 0.2.0
+ * Version: 0.3.0
  *
  * A production-grade vector database for browsers using WebAssembly
  */
@@ -30,6 +30,14 @@ declare module 'vecdb-wasm' {
         Euclidean = 1,
         /** Dot product. Best for recommendation systems. Range: -∞ to ∞ */
         DotProduct = 2,
+        /** Manhattan distance (L1 norm). Also known as taxicab distance. Range: 0-∞ */
+        Manhattan = 3,
+        /** Chebyshev distance (L∞ norm). Also known as maximum metric. Range: 0-∞ */
+        Chebyshev = 4,
+        /** Hamming distance. For binary/integer vectors. Range: 0-dimension */
+        Hamming = 5,
+        /** Angular distance. Measures angle between vectors in radians. Range: 0-π */
+        Angular = 6,
     }
 
     /**
@@ -86,6 +94,34 @@ declare module 'vecdb-wasm' {
         hnsw_m?: number;
         /** HNSW ef_construction parameter (only for HNSW index) */
         hnsw_ef?: number;
+    }
+
+    /**
+     * Performance metrics for monitoring database operations
+     */
+    export interface PerformanceMetrics {
+        /** Total number of search operations performed */
+        total_searches: number;
+        /** Total search time in milliseconds */
+        total_search_time_ms: number;
+        /** Average search time in milliseconds */
+        avg_search_time_ms: number;
+        /** Peak search time in milliseconds */
+        peak_search_time_ms: number;
+        /** Total number of insert operations */
+        total_inserts: number;
+        /** Total insert time in milliseconds */
+        total_insert_time_ms: number;
+        /** Average insert time in milliseconds */
+        avg_insert_time_ms: number;
+        /** Total number of batch operations */
+        total_batch_ops: number;
+        /** Total number of vectors in batch operations */
+        total_batch_vectors: number;
+        /** Total batch operation time in milliseconds */
+        total_batch_time_ms: number;
+        /** Average batch operation time in milliseconds */
+        avg_batch_time_ms: number;
     }
 
     /**
@@ -302,6 +338,38 @@ declare module 'vecdb-wasm' {
          * ```
          */
         get_stats(): DatabaseStats;
+
+        /**
+         * Get performance metrics
+         *
+         * Returns comprehensive performance statistics including:
+         * - Total number of searches, inserts, and batch operations
+         * - Average and peak operation times
+         * - Throughput metrics
+         *
+         * @returns Performance metrics object
+         *
+         * @example
+         * ```typescript
+         * const metrics = db.get_performance_metrics();
+         * console.log(`Searches: ${metrics.total_searches}, Avg time: ${metrics.avg_search_time_ms.toFixed(2)}ms`);
+         * console.log(`Peak search time: ${metrics.peak_search_time_ms.toFixed(2)}ms`);
+         * ```
+         */
+        get_performance_metrics(): PerformanceMetrics;
+
+        /**
+         * Reset performance metrics
+         *
+         * Clears all performance statistics and starts fresh tracking
+         *
+         * @example
+         * ```typescript
+         * db.reset_performance_metrics();
+         * // Start measuring from scratch
+         * ```
+         */
+        reset_performance_metrics(): void;
 
         /**
          * Export database to binary format

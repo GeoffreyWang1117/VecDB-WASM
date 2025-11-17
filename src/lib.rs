@@ -1,16 +1,18 @@
+pub mod bindings;
+pub mod compat;
 pub mod distance;
 pub mod index;
-pub mod storage;
-pub mod bindings;
+pub mod performance;
 pub mod persistence;
-pub mod compat;
+pub mod storage;
 
-pub use distance::{DistanceMetric, cosine_similarity, euclidean_distance};
-pub use index::{Index, FlatIndex, SearchResult};
-pub use storage::{Vector, VectorMetadata};
-pub use bindings::{VectorDB, IndexType, Metric};
-pub use persistence::{DatabaseSnapshot, IndexParams};
+pub use bindings::{IndexType, Metric, VectorDB};
 pub use compat::BrowserCompat;
+pub use distance::{cosine_similarity, euclidean_distance, DistanceMetric};
+pub use index::{FlatIndex, Index, SearchResult};
+pub use performance::PerformanceMetrics;
+pub use persistence::{DatabaseSnapshot, IndexParams};
+pub use storage::{Vector, VectorMetadata};
 
 // WASM initialization
 use wasm_bindgen::prelude::*;

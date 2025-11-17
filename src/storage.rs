@@ -49,7 +49,12 @@ impl VectorStorage {
         }
     }
 
-    pub fn insert(&mut self, id: u64, vector: Vector, metadata: VectorMetadata) -> Result<(), String> {
+    pub fn insert(
+        &mut self,
+        id: u64,
+        vector: Vector,
+        metadata: VectorMetadata,
+    ) -> Result<(), String> {
         if vector.len() != self.dimension {
             return Err(format!(
                 "Vector dimension mismatch: expected {}, got {}",

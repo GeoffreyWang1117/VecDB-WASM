@@ -1,8 +1,10 @@
+use js_sys::{Array, Promise, Uint8Array};
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen_futures::JsFuture;
-use web_sys::{IdbDatabase, IdbFactory, IdbOpenDbRequest, IdbTransactionMode, IdbVersionChangeEvent};
-use js_sys::{Uint8Array, Array, Promise};
+use web_sys::{
+    IdbDatabase, IdbFactory, IdbOpenDbRequest, IdbTransactionMode, IdbVersionChangeEvent,
+};
 
 const DB_NAME: &str = "VecDB";
 const DB_VERSION: u32 = 1;
@@ -32,7 +34,7 @@ impl IndexedDBStore {
             }
             Err(_) => {
                 return Err(JsValue::from_str(
-                    "IndexedDB not supported in this browser. Persistence features are disabled."
+                    "IndexedDB not supported in this browser. Persistence features are disabled.",
                 ));
             }
         };
@@ -90,7 +92,10 @@ impl IndexedDBStore {
 
     /// Save data to IndexedDB
     pub async fn save(&self, key: &str, data: &[u8]) -> Result<(), JsValue> {
-        let db = self.db.as_ref().ok_or_else(|| JsValue::from_str("Database not opened"))?;
+        let db = self
+            .db
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Database not opened"))?;
 
         let transaction = db
             .transaction_with_str_and_mode(STORE_NAME, IdbTransactionMode::Readwrite)
@@ -129,7 +134,10 @@ impl IndexedDBStore {
 
     /// Load data from IndexedDB
     pub async fn load(&self, key: &str) -> Result<Vec<u8>, JsValue> {
-        let db = self.db.as_ref().ok_or_else(|| JsValue::from_str("Database not opened"))?;
+        let db = self
+            .db
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Database not opened"))?;
 
         let transaction = db
             .transaction_with_str(STORE_NAME)
@@ -174,7 +182,10 @@ impl IndexedDBStore {
 
     /// Delete data from IndexedDB
     pub async fn delete(&self, key: &str) -> Result<(), JsValue> {
-        let db = self.db.as_ref().ok_or_else(|| JsValue::from_str("Database not opened"))?;
+        let db = self
+            .db
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Database not opened"))?;
 
         let transaction = db
             .transaction_with_str_and_mode(STORE_NAME, IdbTransactionMode::Readwrite)
@@ -209,7 +220,10 @@ impl IndexedDBStore {
 
     /// List all keys in the database
     pub async fn list_keys(&self) -> Result<Vec<String>, JsValue> {
-        let db = self.db.as_ref().ok_or_else(|| JsValue::from_str("Database not opened"))?;
+        let db = self
+            .db
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Database not opened"))?;
 
         let transaction = db
             .transaction_with_str(STORE_NAME)
@@ -264,7 +278,10 @@ impl IndexedDBStore {
 
     /// Clear all data from the store
     pub async fn clear(&self) -> Result<(), JsValue> {
-        let db = self.db.as_ref().ok_or_else(|| JsValue::from_str("Database not opened"))?;
+        let db = self
+            .db
+            .as_ref()
+            .ok_or_else(|| JsValue::from_str("Database not opened"))?;
 
         let transaction = db
             .transaction_with_str_and_mode(STORE_NAME, IdbTransactionMode::Readwrite)

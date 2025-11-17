@@ -1,6 +1,6 @@
+use js_sys;
 use wasm_bindgen::prelude::*;
 use web_sys;
-use js_sys;
 
 /// Browser compatibility information
 #[wasm_bindgen]
@@ -21,7 +21,9 @@ impl BrowserCompat {
     pub fn new() -> Result<BrowserCompat, JsValue> {
         let window = web_sys::window().ok_or_else(|| JsValue::from_str("No window object"))?;
         let navigator = window.navigator();
-        let user_agent = navigator.user_agent().unwrap_or_else(|_| "Unknown".to_string());
+        let user_agent = navigator
+            .user_agent()
+            .unwrap_or_else(|_| "Unknown".to_string());
 
         // Detect browser name
         let browser_name = detect_browser(&user_agent);
@@ -36,11 +38,9 @@ impl BrowserCompat {
         let has_simd = check_simd_support();
 
         // Check BigInt64Array support
-        let has_bigint64array = js_sys::Reflect::has(
-            &js_sys::global(),
-            &JsValue::from_str("BigInt64Array"),
-        )
-        .unwrap_or(false);
+        let has_bigint64array =
+            js_sys::Reflect::has(&js_sys::global(), &JsValue::from_str("BigInt64Array"))
+                .unwrap_or(false);
 
         Ok(BrowserCompat {
             has_indexeddb,
@@ -220,11 +220,8 @@ pub fn check_feature_support(feature: &str) -> bool {
         }
         "wasm" => true, // If we're running, WASM is supported
         "simd" => check_simd_support(),
-        "bigint" => js_sys::Reflect::has(
-            &js_sys::global(),
-            &JsValue::from_str("BigInt64Array"),
-        )
-        .unwrap_or(false),
+        "bigint" => js_sys::Reflect::has(&js_sys::global(), &JsValue::from_str("BigInt64Array"))
+            .unwrap_or(false),
         "crypto" => {
             if let Some(window) = web_sys::window() {
                 js_sys::Reflect::has(&window, &JsValue::from_str("crypto")).unwrap_or(false)
@@ -248,7 +245,9 @@ mod tests {
         );
 
         assert_eq!(
-            detect_browser("Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0"),
+            detect_browser(
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:89.0) Gecko/20100101 Firefox/89.0"
+            ),
             "Firefox"
         );
 
