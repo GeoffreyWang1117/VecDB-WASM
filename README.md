@@ -69,11 +69,17 @@ Open http://localhost:8080 in your browser.
 
 ### Examples
 
+#### Basic Demos
 - **index.html** - Interactive demo with real-time statistics
 - **benchmark.html** - Performance testing suite
-- **persistence.html** - Advanced features including IndexedDB persistence and metadata filtering
-- **compatibility.html** - Browser compatibility checker and feature detection
+- **persistence.html** - IndexedDB persistence and metadata filtering
+- **compatibility.html** - Browser compatibility checker
+
+#### Advanced Examples
 - **worker/** - Web Worker integration for non-blocking operations
+- **benchmark-suite/** - Comprehensive performance benchmarking tool
+- **semantic-search/** - Semantic text search with 20 tech documents
+- **recommendation/** - Movie recommendation system (50 movies)
 
 ## 🌐 Browser Compatibility
 
@@ -110,9 +116,13 @@ For detailed browser compatibility information, see [BROWSER_COMPATIBILITY.md](B
 
 Performance benchmarks comparing VecDB-WASM with native implementations:
 
-- **Search Latency**: < 5ms for 10K vectors (128D)
-- **Throughput**: > 10K queries/second
-- **Memory**: ~50% overhead vs native
+- **Search Latency**: < 2ms for 10K vectors (128D) with HNSW
+- **Throughput**: > 1000 queries/second
+- **SIMD Acceleration**: 2-4x speedup on supported browsers
+- **Package Size**: ~45KB gzipped (optimized build)
+- **Memory**: ~6MB for 10K vectors (128D)
+
+For detailed optimization guide, see [docs/OPTIMIZATION.md](docs/OPTIMIZATION.md)
 
 ## 🧪 Testing
 
