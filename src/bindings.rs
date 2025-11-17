@@ -71,6 +71,83 @@ impl SearchResult {
     }
 }
 
+/// Batch operation error details
+#[wasm_bindgen]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchError {
+    id: u64,
+    index: usize,
+    error: String,
+}
+
+#[wasm_bindgen]
+impl BatchError {
+    #[wasm_bindgen(getter)]
+    pub fn id(&self) -> u64 {
+        self.id
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn index(&self) -> usize {
+        self.index
+    }
+
+    #[wasm_bindgen(getter)]
+    pub fn error(&self) -> String {
+        self.error.clone()
+    }
+}
+
+/// Batch operation result with detailed success/failure information
+#[wasm_bindgen]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BatchInsertResult {
+    total: usize,
+    successful: usize,
+    failed: usize,
+    errors: Vec<BatchError>,
+}
+
+#[wasm_bindgen]
+impl BatchInsertResult {
+    /// Total number of vectors in the batch
+    #[wasm_bindgen(getter)]
+    pub fn total(&self) -> usize {
+        self.total
+    }
+
+    /// Number of successfully inserted vectors
+    #[wasm_bindgen(getter)]
+    pub fn successful(&self) -> usize {
+        self.successful
+    }
+
+    /// Number of failed insertions
+    #[wasm_bindgen(getter)]
+    pub fn failed(&self) -> usize {
+        self.failed
+    }
+
+    /// Get all errors as JSON string
+    #[wasm_bindgen]
+    pub fn get_errors(&self) -> Result<JsValue, JsValue> {
+        serde_wasm_bindgen::to_value(&self.errors)
+            .map_err(|e| JsValue::from_str(&format!("Failed to serialize errors: {}", e)))
+    }
+
+    /// Check if all operations succeeded
+    #[wasm_bindgen]
+    pub fn is_success(&self) -> bool {
+        self.failed == 0
+    }
+
+    /// Check if any operations succeeded
+    #[wasm_bindgen]
+    pub fn has_partial_success(&self) -> bool {
+        self.successful > 0 && self.failed > 0
+    }
+}
+
 /// Main VectorDB interface exposed to JavaScript
 #[wasm_bindgen]
 pub struct VectorDB {
@@ -284,9 +361,29 @@ impl VectorDB {
         self.storage.get_vector(id).cloned()
     }
 
-    /// Batch insert multiple vectors
+    /// Batch insert multiple vectors with detailed error reporting
+    ///
+    /// # Arguments
+    /// * `vectors` - Array of {id, vector, metadata?} objects
+    ///
+    /// # Returns
+    /// BatchInsertResult with detailed success/failure information
+    ///
+    /// # Example
+    /// ```javascript
+    /// const result = db.batch_insert([
+    ///     { id: 1, vector: [...], metadata: {...} },
+    ///     { id: 2, vector: [...] }
+    /// ]);
+    ///
+    /// console.log(`Success: ${result.successful}/${result.total}`);
+    /// if (result.failed > 0) {
+    ///     const errors = result.get_errors();
+    ///     errors.forEach(e => console.log(`ID ${e.id}: ${e.error}`));
+    /// }
+    /// ```
     #[wasm_bindgen]
-    pub fn batch_insert(&mut self, vectors: JsValue) -> Result<usize, JsValue> {
+    pub fn batch_insert(&mut self, vectors: JsValue) -> Result<BatchInsertResult, JsValue> {
         let timer = OperationTimer::start();
 
         #[derive(Deserialize)]
@@ -299,31 +396,76 @@ impl VectorDB {
         let batch: Vec<BatchVector> = serde_wasm_bindgen::from_value(vectors)
             .map_err(|e| JsValue::from_str(&format!("Invalid batch data: {}", e)))?;
 
-        let batch_size = batch.len();
-        let mut count = 0;
-        for item in batch {
+        let total = batch.len();
+        let mut successful = 0;
+        let mut errors = Vec::new();
+
+        for (index, item) in batch.into_iter().enumerate() {
+            // Validate dimension
             if item.vector.len() != self.dimension {
-                continue; // Skip invalid vectors
+                errors.push(BatchError {
+                    id: item.id,
+                    index,
+                    error: format!(
+                        "Dimension mismatch: expected {}, got {}",
+                        self.dimension,
+                        item.vector.len()
+                    ),
+                });
+                continue;
+            }
+
+            // Validate vector data (check for NaN, Inf)
+            if item.vector.iter().any(|&v| !v.is_finite()) {
+                errors.push(BatchError {
+                    id: item.id,
+                    index,
+                    error: "Vector contains NaN or Infinity".to_string(),
+                });
+                continue;
             }
 
             let meta = VectorMetadata::with_data(item.id, item.metadata.unwrap_or_default());
 
-            if self
-                .storage
-                .insert(item.id, item.vector.clone(), meta)
-                .is_ok()
-            {
-                self.index.insert(item.id, &item.vector);
-                count += 1;
+            // Try to insert into storage
+            match self.storage.insert(item.id, item.vector.clone(), meta) {
+                Ok(_) => {
+                    // Insert into index
+                    self.index.insert(item.id, &item.vector);
+                    successful += 1;
+                }
+                Err(e) => {
+                    errors.push(BatchError {
+                        id: item.id,
+                        index,
+                        error: e,
+                    });
+                }
             }
         }
+
+        let failed = errors.len();
 
         // Record performance
         self.metrics
             .borrow_mut()
-            .record_batch(batch_size, timer.elapsed_ms());
+            .record_batch(total, timer.elapsed_ms());
 
-        Ok(count)
+        Ok(BatchInsertResult {
+            total,
+            successful,
+            failed,
+            errors,
+        })
+    }
+
+    /// Legacy batch insert that returns only count (for backward compatibility)
+    ///
+    /// Use batch_insert() instead for detailed error reporting
+    #[wasm_bindgen]
+    pub fn batch_insert_simple(&mut self, vectors: JsValue) -> Result<usize, JsValue> {
+        let result = self.batch_insert(vectors)?;
+        Ok(result.successful)
     }
 
     /// Search with metadata filter
@@ -841,6 +983,93 @@ impl VectorDB {
     #[wasm_bindgen]
     pub fn reset_performance_metrics(&self) {
         self.metrics.borrow_mut().reset();
+    }
+
+    /// Enable or disable integrity checking
+    ///
+    /// When enabled, checksums are calculated and verified for all vectors
+    #[wasm_bindgen]
+    pub fn set_integrity_check(&mut self, enable: bool) {
+        self.storage.enable_integrity_check(enable);
+    }
+
+    /// Check if integrity checking is enabled
+    #[wasm_bindgen]
+    pub fn is_integrity_check_enabled(&self) -> bool {
+        self.storage.is_integrity_check_enabled()
+    }
+
+    /// Verify integrity of a specific vector
+    ///
+    /// # Arguments
+    /// * `id` - Vector ID to verify
+    ///
+    /// # Returns
+    /// true if vector is valid, false if corrupted or not found
+    ///
+    /// # Example
+    /// ```javascript
+    /// if (!db.verify_vector(123)) {
+    ///     console.warn('Vector 123 is corrupted!');
+    /// }
+    /// ```
+    #[wasm_bindgen]
+    pub fn verify_vector(&self, id: u64) -> bool {
+        self.storage.verify_vector(id)
+    }
+
+    /// Verify integrity of all vectors
+    ///
+    /// # Returns
+    /// IntegrityReport with detailed verification results
+    ///
+    /// # Example
+    /// ```javascript
+    /// const report = db.verify_all_vectors();
+    /// console.log(`Valid: ${report.valid}/${report.total}`);
+    /// if (report.corrupted.length > 0) {
+    ///     console.error('Corrupted vectors:', report.corrupted);
+    /// }
+    /// ```
+    #[wasm_bindgen]
+    pub fn verify_all_vectors(&self) -> Result<JsValue, JsValue> {
+        let report = self.storage.verify_all();
+
+        #[derive(Serialize)]
+        struct IntegrityReportJS {
+            total: usize,
+            valid: usize,
+            corrupted: Vec<u64>,
+            missing: Vec<u64>,
+            corruption_rate: f64,
+            is_healthy: bool,
+            summary: String,
+        }
+
+        let js_report = IntegrityReportJS {
+            total: report.total,
+            valid: report.valid,
+            corrupted: report.corrupted.clone(),
+            missing: report.missing.clone(),
+            corruption_rate: report.corruption_rate(),
+            is_healthy: report.is_healthy(),
+            summary: report.summary(),
+        };
+
+        serde_wasm_bindgen::to_value(&js_report)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Get checksum for a specific vector
+    ///
+    /// # Arguments
+    /// * `id` - Vector ID
+    ///
+    /// # Returns
+    /// Checksum value or None if not found
+    #[wasm_bindgen]
+    pub fn get_checksum(&self, id: u64) -> Option<u32> {
+        self.storage.get_checksum(id)
     }
 }
 

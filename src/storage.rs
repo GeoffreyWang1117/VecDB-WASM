@@ -1,3 +1,4 @@
+use crate::integrity::IntegrityChecker;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -38,15 +39,31 @@ pub struct VectorStorage {
     vectors: HashMap<u64, Vector>,
     metadata: HashMap<u64, VectorMetadata>,
     dimension: usize,
+    integrity_checker: IntegrityChecker,
+    enable_integrity_check: bool,
 }
 
 impl VectorStorage {
     pub fn new(dimension: usize) -> Self {
+        Self::with_integrity_check(dimension, true)
+    }
+
+    pub fn with_integrity_check(dimension: usize, enable: bool) -> Self {
         Self {
             vectors: HashMap::new(),
             metadata: HashMap::new(),
             dimension,
+            integrity_checker: IntegrityChecker::new(),
+            enable_integrity_check: enable,
         }
+    }
+
+    pub fn enable_integrity_check(&mut self, enable: bool) {
+        self.enable_integrity_check = enable;
+    }
+
+    pub fn is_integrity_check_enabled(&self) -> bool {
+        self.enable_integrity_check
     }
 
     pub fn insert(
@@ -63,6 +80,11 @@ impl VectorStorage {
             ));
         }
 
+        // Store checksum if enabled
+        if self.enable_integrity_check {
+            self.integrity_checker.store_checksum(id, &vector);
+        }
+
         self.vectors.insert(id, vector);
         self.metadata.insert(id, metadata);
         Ok(())
@@ -72,6 +94,35 @@ impl VectorStorage {
         self.vectors.get(&id)
     }
 
+    pub fn get_vector_with_verification(&self, id: u64) -> Option<&Vector> {
+        if let Some(vector) = self.vectors.get(&id) {
+            if self.enable_integrity_check {
+                if self.integrity_checker.verify(id, vector) {
+                    Some(vector)
+                } else {
+                    // Corruption detected
+                    None
+                }
+            } else {
+                Some(vector)
+            }
+        } else {
+            None
+        }
+    }
+
+    pub fn verify_vector(&self, id: u64) -> bool {
+        if let Some(vector) = self.vectors.get(&id) {
+            self.integrity_checker.verify(id, vector)
+        } else {
+            false
+        }
+    }
+
+    pub fn verify_all(&self) -> crate::integrity::IntegrityReport {
+        self.integrity_checker.get_report(|id| self.vectors.get(&id).cloned())
+    }
+
     pub fn get_metadata(&self, id: u64) -> Option<&VectorMetadata> {
         self.metadata.get(&id)
     }
@@ -79,6 +130,12 @@ impl VectorStorage {
     pub fn remove(&mut self, id: u64) -> bool {
         let v = self.vectors.remove(&id).is_some();
         let m = self.metadata.remove(&id).is_some();
+
+        // Remove checksum
+        if self.enable_integrity_check {
+            self.integrity_checker.remove(id);
+        }
+
         v || m
     }
 
@@ -100,6 +157,10 @@ impl VectorStorage {
 
     pub fn ids(&self) -> Vec<u64> {
         self.vectors.keys().copied().collect()
+    }
+
+    pub fn get_checksum(&self, id: u64) -> Option<u32> {
+        self.integrity_checker.get_checksum(id)
     }
 }
 
