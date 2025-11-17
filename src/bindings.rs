@@ -1,3 +1,4 @@
+use crate::cache::QueryCache;
 use crate::distance::DistanceMetric;
 use crate::index::Index;
 use crate::index::{FlatIndex, HNSWIndex};
@@ -159,6 +160,7 @@ pub struct VectorDB {
     hnsw_m: usize,
     hnsw_ef: usize,
     metrics: RefCell<PerformanceMetrics>,
+    query_cache: RefCell<QueryCache>,
 }
 
 #[wasm_bindgen]
@@ -193,6 +195,7 @@ impl VectorDB {
             hnsw_m: m,
             hnsw_ef: ef,
             metrics: RefCell::new(PerformanceMetrics::new()),
+            query_cache: RefCell::new(QueryCache::new(100)), // Default 100 queries
         })
     }
 
@@ -222,6 +225,7 @@ impl VectorDB {
             hnsw_m: m,
             hnsw_ef: ef_construction,
             metrics: RefCell::new(PerformanceMetrics::new()),
+            query_cache: RefCell::new(QueryCache::new(100)), // Default 100 queries
         })
     }
 
@@ -265,6 +269,9 @@ impl VectorDB {
         // Insert into index
         self.index.insert(id, &vector);
 
+        // Invalidate query cache (data changed)
+        self.query_cache.borrow_mut().invalidate();
+
         // Record performance
         self.metrics.borrow_mut().record_insert(timer.elapsed_ms());
 
@@ -294,27 +301,61 @@ impl VectorDB {
             )));
         }
 
-        let results = self.index.search(&query, k);
+        // Try to get from cache first (without metadata to keep cache simple)
+        let js_results: Vec<SearchResult> = if !include_metadata {
+            if let Some(cached_results) = self.query_cache.borrow_mut().get(&query, k) {
+                // Convert CachedResult to SearchResult
+                cached_results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id,
+                        score: r.score,
+                        metadata: None,
+                    })
+                    .collect()
+            } else {
+                // Cache miss - perform search
+                let results = self.index.search(&query, k);
 
-        // Convert to JavaScript-friendly format
-        let js_results: Vec<SearchResult> = results
-            .into_iter()
-            .map(|r| {
-                let metadata = if include_metadata {
-                    self.storage
+                // Store in cache
+                let cached: Vec<crate::cache::CachedResult> = results
+                    .iter()
+                    .map(|r| crate::cache::CachedResult {
+                        id: r.id,
+                        score: r.score,
+                    })
+                    .collect();
+                self.query_cache.borrow_mut().put(&query, k, cached);
+
+                // Convert to SearchResult
+                results
+                    .into_iter()
+                    .map(|r| SearchResult {
+                        id: r.id,
+                        score: r.score,
+                        metadata: None,
+                    })
+                    .collect()
+            }
+        } else {
+            // With metadata - don't use cache
+            let results = self.index.search(&query, k);
+            results
+                .into_iter()
+                .map(|r| {
+                    let metadata = self
+                        .storage
                         .get_metadata(r.id)
-                        .and_then(|m| serde_json::to_string(&m.data).ok())
-                } else {
-                    None
-                };
+                        .and_then(|m| serde_json::to_string(&m.data).ok());
 
-                SearchResult {
-                    id: r.id,
-                    score: r.score,
-                    metadata,
-                }
-            })
-            .collect();
+                    SearchResult {
+                        id: r.id,
+                        score: r.score,
+                        metadata,
+                    }
+                })
+                .collect()
+        };
 
         // Record performance
         self.metrics.borrow_mut().record_search(timer.elapsed_ms());
@@ -327,7 +368,14 @@ impl VectorDB {
     #[wasm_bindgen]
     pub fn remove(&mut self, id: u64) -> bool {
         self.storage.remove(id);
-        self.index.remove(id)
+        let removed = self.index.remove(id);
+
+        // Invalidate cache if something was removed
+        if removed {
+            self.query_cache.borrow_mut().invalidate();
+        }
+
+        removed
     }
 
     /// Get the number of vectors in the database
@@ -445,6 +493,11 @@ impl VectorDB {
         }
 
         let failed = errors.len();
+
+        // Invalidate cache if any vectors were successfully inserted
+        if successful > 0 {
+            self.query_cache.borrow_mut().invalidate();
+        }
 
         // Record performance
         self.metrics
@@ -1070,6 +1123,108 @@ impl VectorDB {
     #[wasm_bindgen]
     pub fn get_checksum(&self, id: u64) -> Option<u32> {
         self.storage.get_checksum(id)
+    }
+
+    /// Enable or disable query result caching
+    ///
+    /// # Arguments
+    /// * `enable` - true to enable, false to disable
+    ///
+    /// # Example
+    /// ```javascript
+    /// db.set_cache_enabled(true); // Enable caching
+    /// ```
+    #[wasm_bindgen]
+    pub fn set_cache_enabled(&mut self, enable: bool) {
+        self.query_cache.borrow_mut().set_enabled(enable);
+    }
+
+    /// Check if query caching is enabled
+    ///
+    /// # Returns
+    /// true if caching is enabled, false otherwise
+    #[wasm_bindgen]
+    pub fn is_cache_enabled(&self) -> bool {
+        self.query_cache.borrow().is_enabled()
+    }
+
+    /// Set maximum cache size
+    ///
+    /// # Arguments
+    /// * `max_size` - Maximum number of cached queries (0 = disable cache)
+    ///
+    /// # Example
+    /// ```javascript
+    /// db.set_cache_size(1000); // Cache up to 1000 queries
+    /// ```
+    #[wasm_bindgen]
+    pub fn set_cache_size(&mut self, max_size: usize) {
+        self.query_cache.borrow_mut().set_max_size(max_size);
+    }
+
+    /// Clear the query cache
+    ///
+    /// Removes all cached query results
+    ///
+    /// # Example
+    /// ```javascript
+    /// db.clear_cache();
+    /// ```
+    #[wasm_bindgen]
+    pub fn clear_cache(&mut self) {
+        self.query_cache.borrow_mut().clear();
+    }
+
+    /// Get cache statistics
+    ///
+    /// # Returns
+    /// Cache statistics as JSON object
+    ///
+    /// # Example
+    /// ```javascript
+    /// const stats = db.get_cache_stats();
+    /// console.log(`Hit rate: ${stats.hit_rate * 100}%`);
+    /// console.log(`Cache size: ${stats.size}/${stats.max_size}`);
+    /// ```
+    #[wasm_bindgen]
+    pub fn get_cache_stats(&self) -> Result<JsValue, JsValue> {
+        let stats = self.query_cache.borrow().stats();
+
+        #[derive(Serialize)]
+        struct CacheStatsJS {
+            size: usize,
+            max_size: usize,
+            hits: u64,
+            misses: u64,
+            evictions: u64,
+            hit_rate: f64,
+            enabled: bool,
+            total_requests: u64,
+            efficiency_score: f64,
+        }
+
+        let js_stats = CacheStatsJS {
+            size: stats.size,
+            max_size: stats.max_size,
+            hits: stats.hits,
+            misses: stats.misses,
+            evictions: stats.evictions,
+            hit_rate: stats.hit_rate,
+            enabled: stats.enabled,
+            total_requests: stats.total_requests(),
+            efficiency_score: stats.efficiency_score(),
+        };
+
+        serde_wasm_bindgen::to_value(&js_stats)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Reset cache statistics
+    ///
+    /// Clears hit/miss counters but keeps cached entries
+    #[wasm_bindgen]
+    pub fn reset_cache_stats(&mut self) {
+        self.query_cache.borrow_mut().reset_stats();
     }
 }
 

@@ -1,4 +1,5 @@
 pub mod bindings;
+pub mod cache;
 pub mod compat;
 pub mod distance;
 pub mod index;
@@ -8,6 +9,7 @@ pub mod persistence;
 pub mod storage;
 
 pub use bindings::{IndexType, Metric, VectorDB};
+pub use cache::{CacheStats, QueryCache};
 pub use compat::BrowserCompat;
 pub use distance::{cosine_similarity, euclidean_distance, DistanceMetric};
 pub use index::{FlatIndex, Index, SearchResult};
