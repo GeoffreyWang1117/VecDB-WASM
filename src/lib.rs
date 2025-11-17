@@ -4,6 +4,7 @@ pub mod distance;
 pub mod index;
 pub mod performance;
 pub mod persistence;
+pub mod quantization;
 pub mod storage;
 
 pub use bindings::{IndexType, Metric, VectorDB};
@@ -12,6 +13,7 @@ pub use distance::{cosine_similarity, euclidean_distance, DistanceMetric};
 pub use index::{FlatIndex, Index, SearchResult};
 pub use performance::PerformanceMetrics;
 pub use persistence::{DatabaseSnapshot, IndexParams};
+pub use quantization::ProductQuantizer;
 pub use storage::{Vector, VectorMetadata};
 
 // WASM initialization

@@ -1,8 +1,10 @@
 pub mod flat;
 pub mod hnsw;
+pub mod pq_hnsw;
 
 pub use flat::FlatIndex;
 pub use hnsw::HNSWIndex;
+pub use pq_hnsw::PQHNSWIndex;
 
 use crate::distance::DistanceMetric;
 use crate::storage::VectorMetadata;

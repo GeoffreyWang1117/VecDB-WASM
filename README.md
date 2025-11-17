@@ -80,6 +80,7 @@ Open http://localhost:8080 in your browser.
 - **benchmark-suite/** - Comprehensive performance benchmarking tool
 - **semantic-search/** - Semantic text search with 20 tech documents
 - **recommendation/** - Movie recommendation system (50 movies)
+- **pq-comparison/** - Product Quantization memory/performance comparison (⚡ Experimental)
 
 ## 🌐 Browser Compatibility
 
