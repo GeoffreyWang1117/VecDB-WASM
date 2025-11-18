@@ -575,6 +575,7 @@ dependencies = [
  "getrandom",
  "js-sys",
  "rand",
+ "regex",
  "serde",
  "serde-wasm-bindgen",
  "serde_json",

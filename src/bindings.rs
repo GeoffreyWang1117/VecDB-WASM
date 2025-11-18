@@ -364,6 +364,106 @@ impl VectorDB {
             .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
     }
 
+    /// Search with metadata filtering
+    ///
+    /// Performs vector similarity search and filters results by metadata conditions
+    ///
+    /// # Arguments
+    /// * `query` - Query vector
+    /// * `k` - Number of results to return
+    /// * `filter` - Filter condition as JSON (see FilterCondition structure)
+    ///
+    /// # Returns
+    /// Array of search results matching the filter
+    ///
+    /// # Example
+    /// ```javascript
+    /// // Simple equality filter
+    /// const results = db.search_filtered(
+    ///     query,
+    ///     10,
+    ///     { Eq: { field: "category", value: "science" } }
+    /// );
+    ///
+    /// // Range filter
+    /// const results = db.search_filtered(
+    ///     query,
+    ///     10,
+    ///     { Range: { field: "year", min: "2020", max: "2023" } }
+    /// );
+    ///
+    /// // Compound AND filter
+    /// const results = db.search_filtered(
+    ///     query,
+    ///     10,
+    ///     {
+    ///         And: {
+    ///             conditions: [
+    ///                 { Eq: { field: "category", value: "science" } },
+    ///                 { Gt: { field: "score", value: "80" } }
+    ///             ]
+    ///         }
+    ///     }
+    /// );
+    /// ```
+    #[wasm_bindgen]
+    pub fn search_filtered(
+        &self,
+        query: Vec<f32>,
+        k: usize,
+        filter: JsValue,
+    ) -> Result<JsValue, JsValue> {
+        let timer = crate::performance::OperationTimer::start();
+
+        // Validate query dimension
+        if query.len() != self.dimension {
+            return Err(JsValue::from_str(&format!(
+                "Query dimension mismatch: expected {}, got {}",
+                self.dimension,
+                query.len()
+            )));
+        }
+
+        // Parse filter from JavaScript
+        let filter: crate::filter::FilterCondition =
+            serde_wasm_bindgen::from_value(filter)
+                .map_err(|e| JsValue::from_str(&format!("Invalid filter: {}", e)))?;
+
+        // Perform search with a larger k to account for filtering
+        // We search for more results and then filter them
+        let search_k = (k * 3).max(100); // Get 3x results or at least 100
+        let results = self.index.search(&query, search_k);
+
+        // Filter results by metadata
+        let filtered_results: Vec<SearchResult> = results
+            .into_iter()
+            .filter_map(|r| {
+                // Get metadata for this result
+                if let Some(metadata) = self.storage.get_metadata(r.id) {
+                    // Check if it matches the filter
+                    if filter.matches(&metadata.data) {
+                        Some(SearchResult {
+                            id: r.id,
+                            score: r.score,
+                            metadata: serde_json::to_string(&metadata.data).ok(),
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .take(k) // Only take k results after filtering
+            .collect();
+
+        // Record performance
+        self.metrics.borrow_mut().record_search(timer.elapsed_ms());
+
+        serde_wasm_bindgen::to_value(&filtered_results)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
     /// Remove a vector by ID
     #[wasm_bindgen]
     pub fn remove(&mut self, id: u64) -> bool {
