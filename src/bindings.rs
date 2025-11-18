@@ -1038,6 +1038,144 @@ impl VectorDB {
         self.metrics.borrow_mut().reset();
     }
 
+    /// Get percentile statistics for search operations
+    ///
+    /// # Returns
+    /// Object containing p50, p95, and p99 percentiles in milliseconds
+    ///
+    /// # Example
+    /// ```javascript
+    /// const stats = db.get_search_percentiles();
+    /// console.log(`Median: ${stats.p50}ms, p95: ${stats.p95}ms, p99: ${stats.p99}ms`);
+    /// ```
+    #[wasm_bindgen]
+    pub fn get_search_percentiles(&self) -> Result<JsValue, JsValue> {
+        #[derive(Serialize)]
+        struct Percentiles {
+            p50: f64,
+            p95: f64,
+            p99: f64,
+        }
+
+        let metrics = self.metrics.borrow();
+        let percentiles = Percentiles {
+            p50: metrics.search_p50(),
+            p95: metrics.search_p95(),
+            p99: metrics.search_p99(),
+        };
+
+        serde_wasm_bindgen::to_value(&percentiles)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Get percentile statistics for insert operations
+    ///
+    /// # Returns
+    /// Object containing p50, p95, and p99 percentiles in milliseconds
+    #[wasm_bindgen]
+    pub fn get_insert_percentiles(&self) -> Result<JsValue, JsValue> {
+        #[derive(Serialize)]
+        struct Percentiles {
+            p50: f64,
+            p95: f64,
+            p99: f64,
+        }
+
+        let metrics = self.metrics.borrow();
+        let percentiles = Percentiles {
+            p50: metrics.insert_p50(),
+            p95: metrics.insert_p95(),
+            p99: metrics.insert_p99(),
+        };
+
+        serde_wasm_bindgen::to_value(&percentiles)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Set slow query threshold in milliseconds
+    ///
+    /// Operations exceeding this threshold will be logged as slow queries
+    ///
+    /// # Arguments
+    /// * `threshold_ms` - Threshold in milliseconds (default: 100.0)
+    ///
+    /// # Example
+    /// ```javascript
+    /// db.set_slow_query_threshold(50.0); // Log queries slower than 50ms
+    /// ```
+    #[wasm_bindgen]
+    pub fn set_slow_query_threshold(&self, threshold_ms: f64) {
+        self.metrics.borrow_mut().set_slow_query_threshold(threshold_ms);
+    }
+
+    /// Get slow query log
+    ///
+    /// # Returns
+    /// Array of slow queries with operation type, duration, and timestamp
+    ///
+    /// # Example
+    /// ```javascript
+    /// const slowQueries = db.get_slow_queries();
+    /// slowQueries.forEach(q => {
+    ///     console.log(`${q.operation}: ${q.duration_ms}ms at ${q.timestamp}`);
+    /// });
+    /// ```
+    #[wasm_bindgen]
+    pub fn get_slow_queries(&self) -> Result<JsValue, JsValue> {
+        let metrics = self.metrics.borrow();
+        let slow_queries = metrics.get_slow_queries();
+
+        #[derive(Serialize)]
+        struct SlowQueryJS {
+            operation: String,
+            duration_ms: f64,
+            timestamp: u64,
+        }
+
+        let js_queries: Vec<SlowQueryJS> = slow_queries
+            .iter()
+            .map(|q| SlowQueryJS {
+                operation: q.operation.clone(),
+                duration_ms: q.duration_ms,
+                timestamp: q.timestamp,
+            })
+            .collect();
+
+        serde_wasm_bindgen::to_value(&js_queries)
+            .map_err(|e| JsValue::from_str(&format!("Serialization error: {}", e)))
+    }
+
+    /// Clear slow query log
+    ///
+    /// Removes all entries from the slow query log
+    #[wasm_bindgen]
+    pub fn clear_slow_queries(&self) {
+        self.metrics.borrow_mut().clear_slow_queries();
+    }
+
+    /// Export metrics in Prometheus text format
+    ///
+    /// # Arguments
+    /// * `prefix` - Metric name prefix (e.g., "vecdb")
+    ///
+    /// # Returns
+    /// Metrics in Prometheus exposition format
+    ///
+    /// # Example
+    /// ```javascript
+    /// const metrics = db.export_prometheus_metrics("vecdb");
+    /// console.log(metrics);
+    /// // Output:
+    /// // # HELP vecdb_searches_total Total number of search operations
+    /// // # TYPE vecdb_searches_total counter
+    /// // vecdb_searches_total 1234
+    /// // ...
+    /// ```
+    #[wasm_bindgen]
+    pub fn export_prometheus_metrics(&self, prefix: String) -> String {
+        self.metrics.borrow().to_prometheus(&prefix)
+    }
+
     /// Enable or disable integrity checking
     ///
     /// When enabled, checksums are calculated and verified for all vectors
